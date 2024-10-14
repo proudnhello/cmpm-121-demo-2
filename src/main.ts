@@ -21,6 +21,7 @@ const drawingContext = canvas.getContext("2d")!;
 const cursor = {active: false, x: 0, y: 0}; // Cursor to keep track of the mouse position for drawing
 const lines:{x:number, y:number}[][] = []; // Array to store the lines that have been drawn
 let currentLine = []; // The current line being drawn
+const undoneLines = []; // Array to store the lines that have been undone
 const redrawEvent = new Event("redraw"); // Event to trigger a redraw of the canvas
 
 // Start drawing when the mouse is pressed down
@@ -84,4 +85,17 @@ clearButton.addEventListener("click", () => {
     const ctx = canvas.getContext("2d")!;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     lines.length = 0; // This empties the array. It is the same as lines = [], if lines was a let instead of a const
+});
+
+// Creates a button to undo the last line drawn
+const undoButton = document.createElement("button");
+undoButton.innerHTML = "Undo";
+app.append(undoButton);
+
+// Undo the last line drawn when the button is clicked
+undoButton.addEventListener("click", () => {
+    if (lines.length > 0) {
+        undoneLines.push(lines.pop());
+        canvas.dispatchEvent(redrawEvent);
+    }
 });
