@@ -5,6 +5,7 @@ const CANVAS_WIDTH = 256;
 const CANVAS_HEIGHT = 256;
 const app = document.querySelector<HTMLDivElement>("#app")!;
 
+type Point = {x: number, y: number};
 // Creates the title of the app on the page
 document.title = APP_NAME;
 const pageTitle = document.createElement("h1");
@@ -19,9 +20,9 @@ app.append(canvas);
 const drawingContext = canvas.getContext("2d")!;
 
 const cursor = {active: false, x: 0, y: 0}; // Cursor to keep track of the mouse position for drawing
-const lines:{x:number, y:number}[][] = []; // Array to store the lines that have been drawn
+const lines:Point[][] = []; // Array to store the lines that have been drawn
 let currentLine = []; // The current line being drawn
-const undoneLines = []; // Array to store the lines that have been undone
+const undoneLines:Point[][] = []; // Array to store the lines that have been undone
 const redrawEvent = new Event("redraw"); // Event to trigger a redraw of the canvas
 
 // Start drawing when the mouse is pressed down
@@ -95,7 +96,26 @@ app.append(undoButton);
 // Undo the last line drawn when the button is clicked
 undoButton.addEventListener("click", () => {
     if (lines.length > 0) {
-        undoneLines.push(lines.pop());
+        const lastLine = lines.pop();
+        if (lastLine) {
+            undoneLines.push(lastLine);
+        }
+        canvas.dispatchEvent(redrawEvent);
+    }
+});
+
+// Creates a button to redo the last line that was undone
+const redoButton = document.createElement("button");
+redoButton.innerHTML = "Redo";
+app.append(redoButton);
+
+// Redo the last line that was undone when the button is clicked
+redoButton.addEventListener("click", () => {
+    if (undoneLines.length > 0) {
+        const lastUndoneLine = undoneLines.pop();
+        if (lastUndoneLine) {
+            lines.push(lastUndoneLine);
+        }
         canvas.dispatchEvent(redrawEvent);
     }
 });
