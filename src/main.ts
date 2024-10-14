@@ -30,7 +30,7 @@ canvas.addEventListener("mousedown", (event) => {
     cursor.y = event.offsetY;
 
     // Start a new line
-    currentLine = [{x: cursor.x, y: cursor.y}];
+    currentLine = [{x: cursor.x, y: cursor.y}]; // Start a new line with the current cursor position
     lines.push(currentLine);
     canvas.dispatchEvent(redrawEvent);
 });
@@ -38,7 +38,7 @@ canvas.addEventListener("mousedown", (event) => {
 // Stop drawing when the mouse is released
 canvas.addEventListener("mouseup", () => {
     cursor.active = false;
-    currentLine = [];
+    currentLine = []; // Clear the current line
     canvas.dispatchEvent(redrawEvent);
 });
 
@@ -47,13 +47,13 @@ canvas.addEventListener("mousemove", (event) => {
     if (cursor.active) {
         cursor.x = event.offsetX;
         cursor.y = event.offsetY;
-        currentLine.push({x: cursor.x, y: cursor.y});
+        currentLine.push({x: cursor.x, y: cursor.y}); // Add the current cursor position to the current line
 
         canvas.dispatchEvent(redrawEvent);
     }
 });
 
-// Redraw the canvas when the redraw event is triggered
+// Redraw the canvas when the redraw event is triggered. Uses the lines array, which stores all the lines that have been drawn as an array of points
 canvas.addEventListener("redraw", () => {
     drawingContext.clearRect(0, 0, canvas.width, canvas.height);
 
