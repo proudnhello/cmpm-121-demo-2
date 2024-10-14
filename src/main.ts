@@ -33,6 +33,22 @@ class Line{
     }
 }
 
+// A class to hold a set of mutually exlusive buttons that can be toggled on and off
+// ie, only one button in the set can be active at a time, and clicking one button will deactivate the others
+class ToolButtonSet{
+    activeButton : HTMLButtonElement | null = null;
+    constructor(){
+    }
+    // Set a button to be active and deactivate the others
+    setActive(button:HTMLButtonElement){
+        if (this.activeButton){
+            this.activeButton.classList.remove("activeTool");
+        }
+        this.activeButton = button;
+        this.activeButton.classList.add("activeTool");
+    }
+}
+
 // Creates the title of the app on the page
 document.title = APP_NAME;
 const pageTitle = document.createElement("h1");
@@ -146,6 +162,8 @@ redoButton.addEventListener("click", () => {
 const toolButtons = document.createElement("div");
 app.append(toolButtons);
 
+// Creates a button set for size tools
+const sizeToolButtons = new ToolButtonSet();
 
 // Creates a button to set the thickness to the larger size
 const thickButton = document.createElement("button");
@@ -153,6 +171,7 @@ thickButton.innerHTML = "Thick";
 app.append(thickButton);
 thickButton.addEventListener("click", () => {
     thickness = 5;
+    sizeToolButtons.setActive(thickButton);
 });
 
 // Creates a button to set the thickness to the smaller size
@@ -161,4 +180,5 @@ thinButton.innerHTML = "Thin";
 app.append(thinButton);
 thinButton.addEventListener("click", () => {
     thickness = 1;
+    sizeToolButtons.setActive(thinButton);
 });
