@@ -9,12 +9,15 @@ type Point = {x: number, y: number};
 
 class Line{
     points: Point[] = [];
-    constructor(x:number, y:number){
+    thickness: number = 1;
+    constructor(x:number, y:number, thickness:number = 1){
         this.points.push({x:x, y:y});
+        this.thickness = thickness;
     }
     // Draw the command on the provided canvas context
     display(ctx:CanvasRenderingContext2D){
         ctx.beginPath();
+        ctx.lineWidth = this.thickness;
         if (this.points.length < 0){
             return
         }
@@ -48,6 +51,7 @@ const lines:Line[] = []; // Array to store the lines that have been drawn
 let currentLine:Line | undefined = undefined; // The current line being drawn
 const undoneLines:Line[] = []; // Array to store the lines that have been undone
 const redrawEvent = new Event("redraw"); // Event to trigger a redraw of the canvas
+let thickness = 1; // The thickness of the line being drawn
 
 // Start drawing when the mouse is pressed down
 canvas.addEventListener("mousedown", (event) => {
@@ -56,7 +60,7 @@ canvas.addEventListener("mousedown", (event) => {
     cursor.y = event.offsetY;
 
     // Start a new line
-    currentLine = new Line(cursor.x, cursor.y); // Start a new line with the current cursor position
+    currentLine = new Line(cursor.x, cursor.y, thickness); // Start a new line with the current cursor position
     lines.push(currentLine);
     canvas.dispatchEvent(redrawEvent);
 });
@@ -136,4 +140,25 @@ redoButton.addEventListener("click", () => {
         }
         canvas.dispatchEvent(redrawEvent);
     }
+});
+
+// Creates a div to hold the thickness buttons below the canvas
+const toolButtons = document.createElement("div");
+app.append(toolButtons);
+
+
+// Creates a button to set the thickness to the larger size
+const thickButton = document.createElement("button");
+thickButton.innerHTML = "Thick";
+app.append(thickButton);
+thickButton.addEventListener("click", () => {
+    thickness = 5;
+});
+
+// Creates a button to set the thickness to the smaller size
+const thinButton = document.createElement("button");
+thinButton.innerHTML = "Thin";
+app.append(thinButton);
+thinButton.addEventListener("click", () => {
+    thickness = 1;
 });
