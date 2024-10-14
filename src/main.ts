@@ -6,6 +6,30 @@ const CANVAS_HEIGHT = 256;
 const app = document.querySelector<HTMLDivElement>("#app")!;
 
 type Point = {x: number, y: number};
+
+class Command{
+    points: Point[] = [];
+    constructor(x:number, y:number){
+        this.points.push({x:x, y:y});
+    }
+    // Draw the command on the provided canvas context
+    display(ctx:CanvasRenderingContext2D){
+        ctx.beginPath();
+        if (this.points.length < 0){
+            return
+        }
+        ctx.moveTo(this.points[0].x, this.points[0].y);
+        for (let i = 1; i < this.points.length; i++) {
+            ctx.lineTo(this.points[i].x, this.points[i].y);
+        }
+        ctx.stroke();
+    }
+    // Include a new point in the command
+    drag(x:number, y:number){
+        this.points.push({x:x, y:y});
+    }
+}
+
 // Creates the title of the app on the page
 document.title = APP_NAME;
 const pageTitle = document.createElement("h1");
@@ -20,9 +44,9 @@ app.append(canvas);
 const drawingContext = canvas.getContext("2d")!;
 
 const cursor = {active: false, x: 0, y: 0}; // Cursor to keep track of the mouse position for drawing
-const lines:Point[][] = []; // Array to store the lines that have been drawn
-let currentLine = []; // The current line being drawn
-const undoneLines:Point[][] = []; // Array to store the lines that have been undone
+const lines:Command[] = []; // Array to store the lines that have been drawn
+let currentCommand:Command | undefined = undefined; // The current line being drawn
+const undoneLines:Command[] = []; // Array to store the lines that have been undone
 const redrawEvent = new Event("redraw"); // Event to trigger a redraw of the canvas
 
 // Start drawing when the mouse is pressed down
@@ -32,15 +56,15 @@ canvas.addEventListener("mousedown", (event) => {
     cursor.y = event.offsetY;
 
     // Start a new line
-    currentLine = [{x: cursor.x, y: cursor.y}]; // Start a new line with the current cursor position
-    lines.push(currentLine);
+    currentCommand = new Command(cursor.x, cursor.y); // Start a new line with the current cursor position
+    lines.push(currentCommand);
     canvas.dispatchEvent(redrawEvent);
 });
 
 // Stop drawing when the mouse is released
 canvas.addEventListener("mouseup", () => {
     cursor.active = false;
-    currentLine = []; // Clear the current line
+    currentCommand = undefined; // Clear the current line
     canvas.dispatchEvent(redrawEvent);
 });
 
@@ -49,7 +73,7 @@ canvas.addEventListener("mousemove", (event) => {
     if (cursor.active) {
         cursor.x = event.offsetX;
         cursor.y = event.offsetY;
-        currentLine.push({x: cursor.x, y: cursor.y}); // Add the current cursor position to the current line
+        currentCommand!.drag(cursor.x, cursor.y); // Add the current cursor position to the current line
 
         canvas.dispatchEvent(redrawEvent);
     }
@@ -60,14 +84,7 @@ canvas.addEventListener("redraw", () => {
     drawingContext.clearRect(0, 0, canvas.width, canvas.height);
 
     for (const line of lines) {
-        drawingContext.beginPath();
-        drawingContext.moveTo(line[0].x, line[0].y);
-
-        for (let i = 1; i < line.length; i++) {
-            drawingContext.lineTo(line[i].x, line[i].y);
-        }
-
-        drawingContext.stroke();
+        line.display(drawingContext);
     }
 });
 
@@ -86,6 +103,7 @@ clearButton.addEventListener("click", () => {
     const ctx = canvas.getContext("2d")!;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     lines.length = 0; // This empties the array. It is the same as lines = [], if lines was a let instead of a const
+    undoneLines.length = 0; 
 });
 
 // Creates a button to undo the last line drawn
