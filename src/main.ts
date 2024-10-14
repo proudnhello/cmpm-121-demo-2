@@ -5,9 +5,62 @@ const CANVAS_WIDTH = 256;
 const CANVAS_HEIGHT = 256;
 const app = document.querySelector<HTMLDivElement>("#app")!;
 
+
+// Page setup
+
+
+// Creates the title of the app on the page
+document.title = APP_NAME;
+const pageTitle = document.createElement("h1");
+pageTitle.innerHTML = APP_NAME;
+app.append(pageTitle);
+
+// Creates the canvas that the user will draw on
+const canvas = document.createElement("canvas");
+canvas.width = CANVAS_WIDTH;
+canvas.height = CANVAS_HEIGHT;
+app.append(canvas);
+const drawingContext = canvas.getContext("2d")!;
+
+// Creates a divider between the canvas and the buttons, so that they appears velow the canvas
+const canvasButtonDivider = document.createElement("div");
+canvasButtonDivider.innerHTML = "<br>";
+app.append(canvasButtonDivider);
+
+// Creates a button to clear the canvas
+const clearButton = document.createElement("button");
+clearButton.innerHTML = "Clear";
+app.append(clearButton);
+
+// Creates a button to undo the last line drawn
+const undoButton = document.createElement("button");
+undoButton.innerHTML = "Undo";
+app.append(undoButton);
+
+// Creates a button to redo the last line that was undone
+const redoButton = document.createElement("button");
+redoButton.innerHTML = "Redo";
+app.append(redoButton);
+
+// Creates a div to hold the thickness buttons below the canvas
+const toolButtons = document.createElement("div");
+app.append(toolButtons);
+
+// Creates a button to set the thickness to the larger size
+const thickButton = document.createElement("button");
+thickButton.innerHTML = "Thick";
+app.append(thickButton);
+
+// Creates a button to set the thickness to the smaller size
+const thinButton = document.createElement("button");
+thinButton.innerHTML = "Thin";
+app.append(thinButton);
+
 type Point = {x: number, y: number};
 
-class Line{
+// Classes
+
+class LineCommand{
     points: Point[] = [];
     thickness: number = 1;
     constructor(x:number, y:number, thickness:number = 1){
@@ -33,6 +86,21 @@ class Line{
     }
 }
 
+class CursorCommand{
+    x: number;
+    y: number;
+    constructor(x:number, y:number){
+        this.x = x;
+        this.y = y;
+    }
+
+    display(ctx:CanvasRenderingContext2D){
+        ctx.beginPath();
+        ctx.rect(this.x, this.y, thickness/2, thickness/2);
+        ctx.stroke();
+    }
+}
+
 // A class to hold a set of mutually exlusive buttons that can be toggled on and off
 // ie, only one button in the set can be active at a time, and clicking one button will deactivate the others
 class ToolButtonSet{
@@ -49,74 +117,74 @@ class ToolButtonSet{
     }
 }
 
-// Creates the title of the app on the page
-document.title = APP_NAME;
-const pageTitle = document.createElement("h1");
-pageTitle.innerHTML = APP_NAME;
-app.append(pageTitle);
+// Variables
 
-// Creates the canvas that the user will draw on
-const canvas = document.createElement("canvas");
-canvas.width = CANVAS_WIDTH;
-canvas.height = CANVAS_HEIGHT;
-app.append(canvas);
-const drawingContext = canvas.getContext("2d")!;
+const lines:LineCommand[] = []; // Array to store the lines that have been drawn
+let currentLine:LineCommand | undefined = undefined; // The current line being drawn
+const undoneLines:LineCommand[] = []; // Array to store the lines that have been undone
+const redrawEvent = new Event("redraw"); // Event to trigger a redraw of the canvas, happens when there's a change in the lines array
+const toolMoved = new Event("tool-moved"); 
+let cursorCommand: CursorCommand | undefined = undefined
+let thickness = 1; // The thickness of the line being drawn    
 
-const cursor = {active: false, x: 0, y: 0}; // Cursor to keep track of the mouse position for drawing
-const lines:Line[] = []; // Array to store the lines that have been drawn
-let currentLine:Line | undefined = undefined; // The current line being drawn
-const undoneLines:Line[] = []; // Array to store the lines that have been undone
-const redrawEvent = new Event("redraw"); // Event to trigger a redraw of the canvas
-let thickness = 1; // The thickness of the line being drawn
+// Functions and Event Listeners
 
 // Start drawing when the mouse is pressed down
 canvas.addEventListener("mousedown", (event) => {
-    cursor.active = true;
-    cursor.x = event.offsetX;
-    cursor.y = event.offsetY;
-
+    cursorCommand = undefined;
+    canvas.dispatchEvent(toolMoved);
     // Start a new line
-    currentLine = new Line(cursor.x, cursor.y, thickness); // Start a new line with the current cursor position
+    currentLine = new LineCommand(event.offsetX, event.offsetY, thickness); // Start a new line with the current cursor position
     lines.push(currentLine);
     canvas.dispatchEvent(redrawEvent);
 });
 
 // Stop drawing when the mouse is released
-canvas.addEventListener("mouseup", () => {
-    cursor.active = false;
+canvas.addEventListener("mouseup", (event) => {
+    cursorCommand = new CursorCommand(event.offsetX, event.offsetY);
     currentLine = undefined; // Clear the current line
     canvas.dispatchEvent(redrawEvent);
 });
 
 // Draw a line when the mouse is moved
 canvas.addEventListener("mousemove", (event) => {
-    if (cursor.active) {
-        cursor.x = event.offsetX;
-        cursor.y = event.offsetY;
-        currentLine!.drag(cursor.x, cursor.y); // Add the current cursor position to the current line
-
+    // if a line is being drawn, add the current cursor position to the current line
+    canvas.dispatchEvent(toolMoved);
+    if (currentLine) {
+        cursorCommand = undefined;
+        currentLine!.drag(event.offsetX, event.offsetY); // Add the current cursor position to the current line
         canvas.dispatchEvent(redrawEvent);
+    }else{ // Otherwise, draw a preview of the point that would be drawn if the mouse was clicked
+        cursorCommand = new CursorCommand(event.offsetX, event.offsetY);
+        canvas.dispatchEvent(toolMoved);
     }
 });
 
+canvas.addEventListener("mouseleave", () => {
+    cursorCommand = undefined;
+    currentLine = undefined;
+    canvas.dispatchEvent(toolMoved);
+});
+
+canvas.addEventListener("mouseenter", (event) => {
+    cursorCommand = new CursorCommand(event.offsetX, event.offsetY);
+    canvas.dispatchEvent(toolMoved);
+});
+
 // Redraw the canvas when the redraw event is triggered. Uses the lines array, which stores all the lines that have been drawn as an array of points
-canvas.addEventListener("redraw", () => {
+function redrawCanvas() {
     drawingContext.clearRect(0, 0, canvas.width, canvas.height);
 
     for (const line of lines) {
         line.display(drawingContext);
     }
-});
 
-// Creates a divider between the canvas and the buttons, so that they appears velow the canvas
-const canvasButtonDivider = document.createElement("div");
-canvasButtonDivider.innerHTML = "<br>";
-app.append(canvasButtonDivider);
-
-// Creates a button to clear the canvas
-const clearButton = document.createElement("button");
-clearButton.innerHTML = "Clear";
-app.append(clearButton);
+    if (cursorCommand){
+        cursorCommand.display(drawingContext);
+    }
+}
+canvas.addEventListener("redraw", redrawCanvas);
+canvas.addEventListener("tool-moved", redrawCanvas);
 
 // Clear the canvas when the button is clicked
 clearButton.addEventListener("click", () => {
@@ -125,11 +193,6 @@ clearButton.addEventListener("click", () => {
     lines.length = 0; // This empties the array. It is the same as lines = [], if lines was a let instead of a const
     undoneLines.length = 0; 
 });
-
-// Creates a button to undo the last line drawn
-const undoButton = document.createElement("button");
-undoButton.innerHTML = "Undo";
-app.append(undoButton);
 
 // Undo the last line drawn when the button is clicked
 undoButton.addEventListener("click", () => {
@@ -142,11 +205,6 @@ undoButton.addEventListener("click", () => {
     }
 });
 
-// Creates a button to redo the last line that was undone
-const redoButton = document.createElement("button");
-redoButton.innerHTML = "Redo";
-app.append(redoButton);
-
 // Redo the last line that was undone when the button is clicked
 redoButton.addEventListener("click", () => {
     if (undoneLines.length > 0) {
@@ -158,27 +216,19 @@ redoButton.addEventListener("click", () => {
     }
 });
 
-// Creates a div to hold the thickness buttons below the canvas
-const toolButtons = document.createElement("div");
-app.append(toolButtons);
-
 // Creates a button set for size tools
 const sizeToolButtons = new ToolButtonSet();
 
-// Creates a button to set the thickness to the larger size
-const thickButton = document.createElement("button");
-thickButton.innerHTML = "Thick";
-app.append(thickButton);
-thickButton.addEventListener("click", () => {
-    thickness = 5;
-    sizeToolButtons.setActive(thickButton);
-});
-
-// Creates a button to set the thickness to the smaller size
-const thinButton = document.createElement("button");
-thinButton.innerHTML = "Thin";
-app.append(thinButton);
+// Set the thickness of the line being drawn when the button is clicked
 thinButton.addEventListener("click", () => {
     thickness = 1;
     sizeToolButtons.setActive(thinButton);
+    canvas.dispatchEvent(toolMoved);
+});
+
+// Set the thickness of the line being drawn when the button is clicked
+thickButton.addEventListener("click", () => {
+    thickness = 5;
+    sizeToolButtons.setActive(thickButton);
+    canvas.dispatchEvent(toolMoved);
 });
