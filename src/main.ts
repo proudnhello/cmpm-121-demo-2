@@ -7,7 +7,7 @@ const app = document.querySelector<HTMLDivElement>("#app")!;
 
 type Point = {x: number, y: number};
 
-class Command{
+class Line{
     points: Point[] = [];
     constructor(x:number, y:number){
         this.points.push({x:x, y:y});
@@ -44,9 +44,9 @@ app.append(canvas);
 const drawingContext = canvas.getContext("2d")!;
 
 const cursor = {active: false, x: 0, y: 0}; // Cursor to keep track of the mouse position for drawing
-const lines:Command[] = []; // Array to store the lines that have been drawn
-let currentCommand:Command | undefined = undefined; // The current line being drawn
-const undoneLines:Command[] = []; // Array to store the lines that have been undone
+const lines:Line[] = []; // Array to store the lines that have been drawn
+let currentLine:Line | undefined = undefined; // The current line being drawn
+const undoneLines:Line[] = []; // Array to store the lines that have been undone
 const redrawEvent = new Event("redraw"); // Event to trigger a redraw of the canvas
 
 // Start drawing when the mouse is pressed down
@@ -56,15 +56,15 @@ canvas.addEventListener("mousedown", (event) => {
     cursor.y = event.offsetY;
 
     // Start a new line
-    currentCommand = new Command(cursor.x, cursor.y); // Start a new line with the current cursor position
-    lines.push(currentCommand);
+    currentLine = new Line(cursor.x, cursor.y); // Start a new line with the current cursor position
+    lines.push(currentLine);
     canvas.dispatchEvent(redrawEvent);
 });
 
 // Stop drawing when the mouse is released
 canvas.addEventListener("mouseup", () => {
     cursor.active = false;
-    currentCommand = undefined; // Clear the current line
+    currentLine = undefined; // Clear the current line
     canvas.dispatchEvent(redrawEvent);
 });
 
@@ -73,7 +73,7 @@ canvas.addEventListener("mousemove", (event) => {
     if (cursor.active) {
         cursor.x = event.offsetX;
         cursor.y = event.offsetY;
-        currentCommand!.drag(cursor.x, cursor.y); // Add the current cursor position to the current line
+        currentLine!.drag(cursor.x, cursor.y); // Add the current cursor position to the current line
 
         canvas.dispatchEvent(redrawEvent);
     }
