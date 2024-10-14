@@ -16,4 +16,47 @@ const canvas = document.createElement("canvas");
 canvas.width = CANVAS_WIDTH;
 canvas.height = CANVAS_HEIGHT;
 app.append(canvas);
- 
+
+// Cursor to keep track of the mouse position for drawing
+const cursor = {active: false, x: 0, y: 0};
+
+// Start drawing when the mouse is pressed down
+canvas.addEventListener("mousedown", (e) => {
+    cursor.active = true;
+    cursor.x = e.offsetX;
+    cursor.y = e.offsetY;
+});
+
+// Stop drawing when the mouse is released
+canvas.addEventListener("mouseup", () => {
+    cursor.active = false;
+});
+
+// Draw a line when the mouse is moved
+canvas.addEventListener("mousemove", (e) => {
+    if (cursor.active) {
+        const ctx = canvas.getContext("2d")!;
+        ctx.beginPath();
+        ctx.moveTo(cursor.x, cursor.y);
+        ctx.lineTo(e.offsetX, e.offsetY);
+        ctx.stroke();
+        cursor.x = e.offsetX;
+        cursor.y = e.offsetY;
+    }
+});
+
+// Creates a divider between the canvas and the buttons, so that they appears velow the canvas
+const divider = document.createElement("div");
+divider.innerHTML = "<br>";
+app.append(divider);
+
+// Creates a button to clear the canvas
+const clearButton = document.createElement("button");
+clearButton.innerHTML = "Clear";
+app.append(clearButton);
+
+// Clear the canvas when the button is clicked
+clearButton.addEventListener("click", () => {
+    const ctx = canvas.getContext("2d")!;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+});
