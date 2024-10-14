@@ -21,10 +21,10 @@ app.append(canvas);
 const cursor = {active: false, x: 0, y: 0};
 
 // Start drawing when the mouse is pressed down
-canvas.addEventListener("mousedown", (e) => {
+canvas.addEventListener("mousedown", (event) => {
     cursor.active = true;
-    cursor.x = e.offsetX;
-    cursor.y = e.offsetY;
+    cursor.x = event.offsetX;
+    cursor.y = event.offsetY;
 });
 
 // Stop drawing when the mouse is released
@@ -33,22 +33,22 @@ canvas.addEventListener("mouseup", () => {
 });
 
 // Draw a line when the mouse is moved
-canvas.addEventListener("mousemove", (e) => {
+canvas.addEventListener("mousemove", (event) => {
     if (cursor.active) {
-        const ctx = canvas.getContext("2d")!;
-        ctx.beginPath();
-        ctx.moveTo(cursor.x, cursor.y);
-        ctx.lineTo(e.offsetX, e.offsetY);
-        ctx.stroke();
-        cursor.x = e.offsetX;
-        cursor.y = e.offsetY;
+        const drawingContext = canvas.getContext("2d")!;
+        drawingContext.beginPath();
+        drawingContext.moveTo(cursor.x, cursor.y);
+        drawingContext.lineTo(event.offsetX, event.offsetY);
+        drawingContext.stroke();
+        cursor.x = event.offsetX;
+        cursor.y = event.offsetY;
     }
 });
 
 // Creates a divider between the canvas and the buttons, so that they appears velow the canvas
-const divider = document.createElement("div");
-divider.innerHTML = "<br>";
-app.append(divider);
+const canvasButtonDivider = document.createElement("div");
+canvasButtonDivider.innerHTML = "<br>";
+app.append(canvasButtonDivider);
 
 // Creates a button to clear the canvas
 const clearButton = document.createElement("button");
