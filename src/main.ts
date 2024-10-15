@@ -81,6 +81,7 @@ interface CanBeDisplayed{
     display(ctx:CanvasRenderingContext2D):void;
     drag?(x:number, y:number):void;
     initialize?(x:number, y:number, thickness?:number):void;
+    makeNew?(x:number, y:number, ctx:CanvasRenderingContext2D, thickness:number):CanBeDisplayed;
 }
 
 function makeLineCommand(x:number, y:number, ctx:CanvasRenderingContext2D, thickness:number = 1){
@@ -105,6 +106,9 @@ function makeLineCommand(x:number, y:number, ctx:CanvasRenderingContext2D, thick
         initialize: function(x:number, y:number, thickness:number = 1){
             this.points.push({x:x, y:y});
             this.thickness = thickness;
+        },
+        makeNew: function(x:number, y:number, ctx:CanvasRenderingContext2D, thickness:number){
+            return makeLineCommand(x, y, ctx, thickness);
         }
     }
 }
@@ -140,11 +144,11 @@ function makeButtonSet():ButtonSet{
     }
 }
 
-
 // Variables
 
 const lines:CanBeDisplayed[] = []; // Array to store the lines that have been drawn
-let currentLine:CanBeDisplayed | undefined = undefined; // The current line being drawn
+let currentPlacer:CanBeDisplayed | undefined = makeLineCommand(0, 0, drawingContext, 1); // The current line being drawn
+let oldPlacer:CanBeDisplayed | undefined = currentPlacer; // The previous line being drawn, used to start a new line
 const undoneLines:CanBeDisplayed[] = []; // Array to store the lines that have been undone
 const redrawEvent = new Event("redraw"); // Event to trigger a redraw of the canvas, happens when there's a change in the lines array
 const toolMovedEvent = new Event("tool-moved"); 
@@ -158,15 +162,18 @@ canvas.addEventListener("mousedown", (event) => {
     cursorCommand = undefined;
     canvas.dispatchEvent(toolMovedEvent);
     // Start a new line
-    currentLine = makeLineCommand(event.offsetX, event.offsetY, drawingContext, thickness); // Start a new line with the current cursor position
-    lines.push(currentLine);
+    const newPlacer = oldPlacer!.makeNew!(event.offsetX, event.offsetY, drawingContext, thickness); // Start a new line with the current cursor position
+    console.log(newPlacer);
+    lines.push(newPlacer!);
+    currentPlacer = newPlacer;
     canvas.dispatchEvent(redrawEvent);
 });
 
 // Stop drawing when the mouse is released
 canvas.addEventListener("mouseup", (event) => {
     cursorCommand = makeCursorCommand(event.offsetX, event.offsetY, drawingContext, thickness);
-    currentLine = undefined; // Clear the current line
+    oldPlacer = currentPlacer;
+    currentPlacer = undefined;
     canvas.dispatchEvent(redrawEvent);
 });
 
@@ -174,9 +181,9 @@ canvas.addEventListener("mouseup", (event) => {
 canvas.addEventListener("mousemove", (event) => {
     // if a line is being drawn, add the current cursor position to the current line
     canvas.dispatchEvent(toolMovedEvent);
-    if (currentLine) {
+    if (currentPlacer) {
         cursorCommand = undefined;
-        currentLine!.drag!(event.offsetX, event.offsetY); // Add the current cursor position to the current line
+        currentPlacer!.drag!(event.offsetX, event.offsetY); // Add the current cursor position to the current line
         canvas.dispatchEvent(redrawEvent);
     }else{ // Otherwise, draw a preview of the point that would be drawn if the mouse was clicked
         cursorCommand = makeCursorCommand(event.offsetX, event.offsetY, drawingContext, thickness);
@@ -187,7 +194,6 @@ canvas.addEventListener("mousemove", (event) => {
 // Stop drawing when the mouse leaves the canvas
 canvas.addEventListener("mouseleave", () => {
     cursorCommand = undefined;
-    currentLine = undefined;
     canvas.dispatchEvent(toolMovedEvent);
 });
 
