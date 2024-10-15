@@ -122,21 +122,24 @@ function makeCursorCommand(x:number, y:number, ctx:CanvasRenderingContext2D, thi
     }
 }
 
-// A class to hold a set of mutually exlusive buttons that can be toggled on and off
-// ie, only one button in the set can be active at a time, and clicking one button will deactivate the others
-class ToolButtonSet{
-    activeButton : HTMLButtonElement | null = null;
-    constructor(){
-    }
-    // Set a button to be active and deactivate the others
-    setActive(button:HTMLButtonElement){
-        if (this.activeButton){
-            this.activeButton.classList.remove("activeTool");
+interface ButtonSet{
+    activeButton:HTMLButtonElement | null;
+    setActive(button:HTMLButtonElement):void;
+}
+
+function makeButtonSet():ButtonSet{
+    return {
+        activeButton: null,
+        setActive: function(button:HTMLButtonElement){
+            if (this.activeButton){
+                this.activeButton.classList.remove("activeTool");
+            }
+            this.activeButton = button;
+            this.activeButton!.classList.add("activeTool");
         }
-        this.activeButton = button;
-        this.activeButton.classList.add("activeTool");
     }
 }
+
 
 // Variables
 
@@ -240,7 +243,7 @@ redoButton.addEventListener("click", () => {
 });
 
 // Creates a button set for size tools
-const sizeToolButtons = new ToolButtonSet();
+const sizeToolButtons = makeButtonSet();
 
 // Set the thickness of the line being drawn when the button is clicked
 thinButton.addEventListener("click", () => {
