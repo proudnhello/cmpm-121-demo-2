@@ -163,11 +163,11 @@ function makeButtonSet():ButtonSet{
 // Variables
 
 const lines:CanBeDisplayed[] = []; // Array to store the lines that have been drawn
-let currentPlacer:CanBeDisplayed | undefined = makeLineCommand(0, 0, drawingContext, 1); // The current line being drawn
+let currentPlacer:CanBeDisplayed | undefined = undefined; // The current line being drawn
 const undoneLines:CanBeDisplayed[] = []; // Array to store the lines that have been undone
 const redrawEvent = new Event("redraw"); // Event to trigger a redraw of the canvas, happens when there's a change in the lines array
 const toolMovedEvent = new Event("tool-moved"); 
-let cursorCommand: CanBeDisplayed | undefined = undefined
+let cursorCommand: CanBeDisplayed | undefined = makeCursorCommand(0, 0, drawingContext, 1, "🏴‍☠️");
 let currentCommandConstructor: ComandConstructor = makeLineCommand;
 let currentEmoji: string = "🏴‍☠️";
 let thickness = 1; // The thickness of the line being drawn    
@@ -191,6 +191,26 @@ canvas.addEventListener("mouseup", (event) => {
     canvas.dispatchEvent(redrawEvent);
 });
 
+// Stop drawing when the mouse leaves the canvas
+canvas.addEventListener("mouseleave", () => {
+    currentPlacer = undefined;
+    cursorCommand = undefined;
+    canvas.dispatchEvent(toolMovedEvent);
+});
+
+// Start providing a preview of the point that would be drawn if the mouse was clicked when the mouse enters the canvas
+canvas.addEventListener("mouseenter", (event) => {
+    cursorCommand = makeCursorCommand(event.offsetX, event.offsetY, drawingContext, thickness, currentEmoji);
+    canvas.dispatchEvent(toolMovedEvent);
+});
+
+// Clear the canvas when the button is clicked
+clearButton.addEventListener("click", () => {
+    drawingContext.clearRect(0, 0, canvas.width, canvas.height);
+    lines.length = 0; // This empties the array. It is the same as lines = [], if lines was a let instead of a const
+    undoneLines.length = 0; 
+});
+
 // Draw a line when the mouse is moved
 canvas.addEventListener("mousemove", (event) => {
     // if a line is being drawn, add the current cursor position to the current line
@@ -205,25 +225,6 @@ canvas.addEventListener("mousemove", (event) => {
     canvas.dispatchEvent(toolMovedEvent);
 });
 
-// Stop drawing when the mouse leaves the canvas
-canvas.addEventListener("mouseleave", () => {
-    cursorCommand = undefined;
-    canvas.dispatchEvent(toolMovedEvent);
-});
-
-// Start providing a preview of the point that would be drawn if the mouse was clicked when the mouse enters the canvas
-canvas.addEventListener("mouseenter", (event) => {
-    cursorCommand = makeCursorCommand(event.offsetX, event.offsetY, drawingContext, thickness, currentEmoji);
-    canvas.dispatchEvent(toolMovedEvent);
-});
-
-// Clear the canvas when the button is clicked
-clearButton.addEventListener("click", () => {
-    const ctx = canvas.getContext("2d")!;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    lines.length = 0; // This empties the array. It is the same as lines = [], if lines was a let instead of a const
-    undoneLines.length = 0; 
-});
 
 // Undo the last line drawn when the button is clicked
 undoButton.addEventListener("click", () => {
@@ -292,11 +293,11 @@ unicornButton.addEventListener("click", () => {
 
 // Redraw the canvas when the redraw event is triggered. Uses the lines array, which stores all the lines that have been drawn as an array of points
 function redrawCanvas() {
-    drawingContext.clearRect(0, 0, canvas.width, canvas.height);
+    drawingContext.clearRect(0, 0, canvas.width, canvas.height); 
 
     for (const line of lines) {
         line.display(drawingContext);
-    }
+    } 
 
     if (cursorCommand){
         cursorCommand.display(drawingContext);
