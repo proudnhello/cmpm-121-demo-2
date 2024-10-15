@@ -80,8 +80,10 @@ type Point = {x: number, y: number};
 interface CanBeDisplayed{
     display(ctx:CanvasRenderingContext2D):void;
     drag?(x:number, y:number):void;
-    initialize?(x:number, y:number, thickness?:number):void;
-    makeNew?(x:number, y:number, ctx:CanvasRenderingContext2D, thickness:number):CanBeDisplayed;
+}
+
+interface ComandConstructor{
+    (x:number, y:number, ctx:CanvasRenderingContext2D, thickness?:number, emoji?:string):CanBeDisplayed;
 }
 
 function makeLineCommand(x:number, y:number, ctx:CanvasRenderingContext2D, thickness:number = 1){
@@ -102,26 +104,40 @@ function makeLineCommand(x:number, y:number, ctx:CanvasRenderingContext2D, thick
         },
         drag: function(x:number, y:number){
             this.points.push({x:x, y:y});
-        },
-        initialize: function(x:number, y:number, thickness:number = 1){
-            this.points.push({x:x, y:y});
-            this.thickness = thickness;
-        },
-        makeNew: function(x:number, y:number, ctx:CanvasRenderingContext2D, thickness:number){
-            return makeLineCommand(x, y, ctx, thickness);
         }
     }
 }
 
-function makeCursorCommand(x:number, y:number, ctx:CanvasRenderingContext2D, thickness:number = 1){
+function makeEmojiCommand(x:number, y:number, ctx:CanvasRenderingContext2D, thickness?: number, emoji?:string){
+    return {
+        x: x,
+        y: y,
+        emoji: emoji,
+        display: function(){
+            ctx.font = `24px sans-serif`;
+            ctx.fillText(this.emoji!, this.x, this.y);
+        },
+        drag: function(x:number, y:number){
+            this.x = x;
+            this.y = y;
+        }
+    }
+}
+
+function makeCursorCommand(x:number, y:number, ctx:CanvasRenderingContext2D, thickness:number = 1, emoji:string){
     return {
         x: x,
         y: y,
         display: function(){
-            ctx.beginPath();
-            ctx.lineWidth = thickness;
-            ctx.rect(this.x, this.y, thickness/100, thickness/100);
-            ctx.stroke();
+            if(currentCommandConstructor === makeLineCommand){
+                ctx.beginPath();
+                ctx.lineWidth = thickness;
+                ctx.rect(this.x, this.y, thickness/100, thickness/100);
+                ctx.stroke();
+            }else{
+                ctx.font = `24px sans-serif`;
+                ctx.fillText(emoji, this.x, this.y);
+            }
         }
     }
 }
@@ -148,11 +164,12 @@ function makeButtonSet():ButtonSet{
 
 const lines:CanBeDisplayed[] = []; // Array to store the lines that have been drawn
 let currentPlacer:CanBeDisplayed | undefined = makeLineCommand(0, 0, drawingContext, 1); // The current line being drawn
-let oldPlacer:CanBeDisplayed | undefined = currentPlacer; // The previous line being drawn, used to start a new line
 const undoneLines:CanBeDisplayed[] = []; // Array to store the lines that have been undone
 const redrawEvent = new Event("redraw"); // Event to trigger a redraw of the canvas, happens when there's a change in the lines array
 const toolMovedEvent = new Event("tool-moved"); 
 let cursorCommand: CanBeDisplayed | undefined = undefined
+let currentCommandConstructor: ComandConstructor = makeLineCommand;
+let currentEmoji: string = "🏴‍☠️";
 let thickness = 1; // The thickness of the line being drawn    
 
 // Functions and Event Listeners
@@ -162,17 +179,14 @@ canvas.addEventListener("mousedown", (event) => {
     cursorCommand = undefined;
     canvas.dispatchEvent(toolMovedEvent);
     // Start a new line
-    const newPlacer = oldPlacer!.makeNew!(event.offsetX, event.offsetY, drawingContext, thickness); // Start a new line with the current cursor position
-    console.log(newPlacer);
-    lines.push(newPlacer!);
-    currentPlacer = newPlacer;
+    currentPlacer = currentCommandConstructor(event.offsetX, event.offsetY, drawingContext, thickness, currentEmoji) // Start a new line with the current cursor position
+    lines.push(currentPlacer!);
     canvas.dispatchEvent(redrawEvent);
 });
 
 // Stop drawing when the mouse is released
 canvas.addEventListener("mouseup", (event) => {
-    cursorCommand = makeCursorCommand(event.offsetX, event.offsetY, drawingContext, thickness);
-    oldPlacer = currentPlacer;
+    cursorCommand = makeCursorCommand(event.offsetX, event.offsetY, drawingContext, thickness, currentEmoji);
     currentPlacer = undefined;
     canvas.dispatchEvent(redrawEvent);
 });
@@ -180,15 +194,15 @@ canvas.addEventListener("mouseup", (event) => {
 // Draw a line when the mouse is moved
 canvas.addEventListener("mousemove", (event) => {
     // if a line is being drawn, add the current cursor position to the current line
-    canvas.dispatchEvent(toolMovedEvent);
     if (currentPlacer) {
         cursorCommand = undefined;
         currentPlacer!.drag!(event.offsetX, event.offsetY); // Add the current cursor position to the current line
         canvas.dispatchEvent(redrawEvent);
     }else{ // Otherwise, draw a preview of the point that would be drawn if the mouse was clicked
-        cursorCommand = makeCursorCommand(event.offsetX, event.offsetY, drawingContext, thickness);
+        cursorCommand = makeCursorCommand(event.offsetX, event.offsetY, drawingContext, thickness, currentEmoji);
         canvas.dispatchEvent(toolMovedEvent);
     }
+    canvas.dispatchEvent(toolMovedEvent);
 });
 
 // Stop drawing when the mouse leaves the canvas
@@ -199,24 +213,9 @@ canvas.addEventListener("mouseleave", () => {
 
 // Start providing a preview of the point that would be drawn if the mouse was clicked when the mouse enters the canvas
 canvas.addEventListener("mouseenter", (event) => {
-    cursorCommand = makeCursorCommand(event.offsetX, event.offsetY, drawingContext, thickness);
+    cursorCommand = makeCursorCommand(event.offsetX, event.offsetY, drawingContext, thickness, currentEmoji);
     canvas.dispatchEvent(toolMovedEvent);
 });
-
-// Redraw the canvas when the redraw event is triggered. Uses the lines array, which stores all the lines that have been drawn as an array of points
-function redrawCanvas() {
-    drawingContext.clearRect(0, 0, canvas.width, canvas.height);
-
-    for (const line of lines) {
-        line.display(drawingContext);
-    }
-
-    if (cursorCommand){
-        cursorCommand.display(drawingContext);
-    }
-}
-canvas.addEventListener("redraw", redrawCanvas);
-canvas.addEventListener("tool-moved", redrawCanvas);
 
 // Clear the canvas when the button is clicked
 clearButton.addEventListener("click", () => {
@@ -254,6 +253,7 @@ const sizeToolButtons = makeButtonSet();
 // Set the thickness of the line being drawn when the button is clicked
 thinButton.addEventListener("click", () => {
     thickness = 1;
+    currentCommandConstructor = makeLineCommand;
     sizeToolButtons.setActive(thinButton);
     canvas.dispatchEvent(toolMovedEvent);
 });
@@ -261,6 +261,47 @@ thinButton.addEventListener("click", () => {
 // Set the thickness of the line being drawn when the button is clicked
 thickButton.addEventListener("click", () => {
     thickness = 5;
+    currentCommandConstructor = makeLineCommand;
     sizeToolButtons.setActive(thickButton);
     canvas.dispatchEvent(toolMovedEvent);
 });
+
+// Creates a button to set the emoji to pirate
+pirateButton.addEventListener("click", () => {
+    currentEmoji = "🏴‍☠️";
+    currentCommandConstructor = makeEmojiCommand;
+    canvas.dispatchEvent(toolMovedEvent);
+    sizeToolButtons.setActive(pirateButton);
+});
+
+// Creates a button to set the emoji to alien
+ablienButton.addEventListener("click", () => {
+    currentEmoji = "👽";
+    currentCommandConstructor = makeEmojiCommand;
+    canvas.dispatchEvent(toolMovedEvent);
+    sizeToolButtons.setActive(ablienButton);
+});
+
+// Creates a button to set the emoji to unicorn
+unicornButton.addEventListener("click", () => {
+    currentEmoji = "🦄";
+    currentCommandConstructor = makeEmojiCommand;
+    canvas.dispatchEvent(toolMovedEvent);
+    sizeToolButtons.setActive(unicornButton);
+});
+
+// Redraw the canvas when the redraw event is triggered. Uses the lines array, which stores all the lines that have been drawn as an array of points
+function redrawCanvas() {
+    drawingContext.clearRect(0, 0, canvas.width, canvas.height);
+
+    for (const line of lines) {
+        line.display(drawingContext);
+    }
+
+    if (cursorCommand){
+        cursorCommand.display(drawingContext);
+    }
+}
+
+canvas.addEventListener("redraw", redrawCanvas);
+canvas.addEventListener("tool-moved", redrawCanvas);
