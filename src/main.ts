@@ -96,7 +96,9 @@ class CursorCommand{
 
     display(ctx:CanvasRenderingContext2D){
         ctx.beginPath();
-        ctx.rect(this.x, this.y, thickness/2, thickness/2);
+        ctx.lineWidth = thickness;
+        // Thickness/100 is used for the w and h so that the cursor essentially draws a point based on the thickness
+        ctx.rect(this.x, this.y, thickness/100, thickness/100);
         ctx.stroke();
     }
 }
@@ -123,7 +125,7 @@ const lines:LineCommand[] = []; // Array to store the lines that have been drawn
 let currentLine:LineCommand | undefined = undefined; // The current line being drawn
 const undoneLines:LineCommand[] = []; // Array to store the lines that have been undone
 const redrawEvent = new Event("redraw"); // Event to trigger a redraw of the canvas, happens when there's a change in the lines array
-const toolMoved = new Event("tool-moved"); 
+const toolMovedEvent = new Event("tool-moved"); 
 let cursorCommand: CursorCommand | undefined = undefined
 let thickness = 1; // The thickness of the line being drawn    
 
@@ -132,7 +134,7 @@ let thickness = 1; // The thickness of the line being drawn
 // Start drawing when the mouse is pressed down
 canvas.addEventListener("mousedown", (event) => {
     cursorCommand = undefined;
-    canvas.dispatchEvent(toolMoved);
+    canvas.dispatchEvent(toolMovedEvent);
     // Start a new line
     currentLine = new LineCommand(event.offsetX, event.offsetY, thickness); // Start a new line with the current cursor position
     lines.push(currentLine);
@@ -149,26 +151,28 @@ canvas.addEventListener("mouseup", (event) => {
 // Draw a line when the mouse is moved
 canvas.addEventListener("mousemove", (event) => {
     // if a line is being drawn, add the current cursor position to the current line
-    canvas.dispatchEvent(toolMoved);
+    canvas.dispatchEvent(toolMovedEvent);
     if (currentLine) {
         cursorCommand = undefined;
         currentLine!.drag(event.offsetX, event.offsetY); // Add the current cursor position to the current line
         canvas.dispatchEvent(redrawEvent);
     }else{ // Otherwise, draw a preview of the point that would be drawn if the mouse was clicked
         cursorCommand = new CursorCommand(event.offsetX, event.offsetY);
-        canvas.dispatchEvent(toolMoved);
+        canvas.dispatchEvent(toolMovedEvent);
     }
 });
 
+// Stop drawing when the mouse leaves the canvas
 canvas.addEventListener("mouseleave", () => {
     cursorCommand = undefined;
     currentLine = undefined;
-    canvas.dispatchEvent(toolMoved);
+    canvas.dispatchEvent(toolMovedEvent);
 });
 
+// Start providing a preview of the point that would be drawn if the mouse was clicked when the mouse enters the canvas
 canvas.addEventListener("mouseenter", (event) => {
     cursorCommand = new CursorCommand(event.offsetX, event.offsetY);
-    canvas.dispatchEvent(toolMoved);
+    canvas.dispatchEvent(toolMovedEvent);
 });
 
 // Redraw the canvas when the redraw event is triggered. Uses the lines array, which stores all the lines that have been drawn as an array of points
@@ -223,12 +227,12 @@ const sizeToolButtons = new ToolButtonSet();
 thinButton.addEventListener("click", () => {
     thickness = 1;
     sizeToolButtons.setActive(thinButton);
-    canvas.dispatchEvent(toolMoved);
+    canvas.dispatchEvent(toolMovedEvent);
 });
 
 // Set the thickness of the line being drawn when the button is clicked
 thickButton.addEventListener("click", () => {
     thickness = 5;
     sizeToolButtons.setActive(thickButton);
-    canvas.dispatchEvent(toolMoved);
+    canvas.dispatchEvent(toolMovedEvent);
 });

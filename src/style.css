@@ -59,6 +59,7 @@ canvas {
   box-shadow: 0 0 4em rgb(0, 0, 0);
   border: solid 4px #000000;
   background-color: #ffffff;
+  cursor: none;
 }
 
 .card {
