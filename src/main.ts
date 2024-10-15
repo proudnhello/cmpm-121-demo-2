@@ -5,9 +5,7 @@ const CANVAS_WIDTH = 256;
 const CANVAS_HEIGHT = 256;
 const app = document.querySelector<HTMLDivElement>("#app")!;
 
-
 // Page setup
-
 
 // Creates the title of the app on the page
 document.title = APP_NAME;
@@ -56,33 +54,58 @@ const thinButton = document.createElement("button");
 thinButton.innerHTML = "Thin";
 app.append(thinButton);
 
+// Adds a div to seperate the emojis from the brushes
+const brushToEmojiDiv = document.createElement("div");
+app.append(brushToEmojiDiv)
+
+// Add the first emoji button
+const pirateButton = document.createElement("button");
+pirateButton.innerHTML = "🏴‍☠️";
+app.append(pirateButton);
+
+// Add the second emoji button
+const ablienButton = document.createElement("button");  
+ablienButton.innerHTML = "👽"
+app.append(ablienButton);
+
+// Add the third emoji button
+const unicornButton = document.createElement("button");
+unicornButton.innerHTML = "🦄"
+app.append(unicornButton);
+
 type Point = {x: number, y: number};
 
-// Classes
+// Classes/interfaces
 
-class LineCommand{
-    points: Point[] = [];
-    thickness: number = 1;
-    constructor(x:number, y:number, thickness:number = 1){
-        this.points.push({x:x, y:y});
-        this.thickness = thickness;
-    }
-    // Draw the command on the provided canvas context
-    display(ctx:CanvasRenderingContext2D){
-        ctx.beginPath();
-        ctx.lineWidth = this.thickness;
-        if (this.points.length < 0){
-            return
+interface CanBeDisplayed{
+    display(ctx:CanvasRenderingContext2D):void;
+    drag(x:number, y:number):void;
+    initialize(x:number, y:number, thickness?:number):void;
+}
+
+function makeLineCommand(x:number, y:number, ctx:CanvasRenderingContext2D, thickness:number = 1){
+    return {
+        points: [{x:x, y:y}],
+        thickness: thickness,
+        display: function(){
+            ctx.beginPath();
+            ctx.lineWidth = this.thickness;
+            if (this.points.length < 0){
+                return
+            }
+            ctx.moveTo(this.points[0].x, this.points[0].y);
+            for (let i = 1; i < this.points.length; i++) {
+                ctx.lineTo(this.points[i].x, this.points[i].y);
+            }
+            ctx.stroke();
+        },
+        drag: function(x:number, y:number){
+            this.points.push({x:x, y:y});
+        },
+        initialize: function(x:number, y:number, thickness:number = 1){
+            this.points.push({x:x, y:y});
+            this.thickness = thickness;
         }
-        ctx.moveTo(this.points[0].x, this.points[0].y);
-        for (let i = 1; i < this.points.length; i++) {
-            ctx.lineTo(this.points[i].x, this.points[i].y);
-        }
-        ctx.stroke();
-    }
-    // Include a new point in the command
-    drag(x:number, y:number){
-        this.points.push({x:x, y:y});
     }
 }
 
@@ -121,9 +144,9 @@ class ToolButtonSet{
 
 // Variables
 
-const lines:LineCommand[] = []; // Array to store the lines that have been drawn
-let currentLine:LineCommand | undefined = undefined; // The current line being drawn
-const undoneLines:LineCommand[] = []; // Array to store the lines that have been undone
+const lines:CanBeDisplayed[] = []; // Array to store the lines that have been drawn
+let currentLine:CanBeDisplayed | undefined = undefined; // The current line being drawn
+const undoneLines:CanBeDisplayed[] = []; // Array to store the lines that have been undone
 const redrawEvent = new Event("redraw"); // Event to trigger a redraw of the canvas, happens when there's a change in the lines array
 const toolMovedEvent = new Event("tool-moved"); 
 let cursorCommand: CursorCommand | undefined = undefined
@@ -136,7 +159,7 @@ canvas.addEventListener("mousedown", (event) => {
     cursorCommand = undefined;
     canvas.dispatchEvent(toolMovedEvent);
     // Start a new line
-    currentLine = new LineCommand(event.offsetX, event.offsetY, thickness); // Start a new line with the current cursor position
+    currentLine = makeLineCommand(event.offsetX, event.offsetY, drawingContext, thickness); // Start a new line with the current cursor position
     lines.push(currentLine);
     canvas.dispatchEvent(redrawEvent);
 });
