@@ -54,17 +54,20 @@ const thinButton = document.createElement("button");
 thinButton.innerHTML = "Thin";
 toolButtons.append(thinButton);
 
+// Create a button to add a new emoji
+const emojiButton = document.createElement("button");
+emojiButton.innerHTML = "Custom Sticker";
+toolButtons.append(emojiButton);
+
 // Adds a div to contain the emoji buttons
 const emojiDiv = document.createElement("div");
 app.append(emojiDiv)
-
-// Add a 
 
 // Defines the emoji buttons
 // All keys are strings, so as to make it proper JSON
 // Thank you to github copilot for the syntax of ...null as HTMLButtonElement | null
 // Each emoji object has an emoji and a corresponding button, which will be useful for setting up listeners later
-let emojiObject = [
+const emojiObject = [
     {"emoji": "🏴‍☠️", "button": null as HTMLButtonElement | null},
     {"emoji": "👽", "button": null as HTMLButtonElement | null},
     {"emoji": "🦄", "button": null as HTMLButtonElement | null}
@@ -311,6 +314,13 @@ thickButton.addEventListener("click", () => {
     currentCommandConstructor = makeLineCommand;
     sizeToolButtons.setActive(thickButton);
     canvas.dispatchEvent(toolMovedEvent);
+});
+
+// When the add emoji button is clicked, add a new emoji to the emoji buttons array, and update the emoji buttons
+emojiButton.addEventListener("click", () => {
+    const stickerText:string = prompt("Custom Sticker Text:", "Put text here")!;
+    emojiObject.push({"emoji": stickerText, "button": null});
+    updateEmojiButtons();
 });
 
 // Redraw the canvas when the redraw event is triggered. Uses the lines array, which stores all the lines that have been drawn as an array of points
