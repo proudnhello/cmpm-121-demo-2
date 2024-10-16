@@ -148,7 +148,7 @@ function makeEmojiCommand(x:number, y:number, ctx:CanvasRenderingContext2D, thic
         // Display the emoji on the canvas, with the emoji at the x and y position
         display: function(){
             ctx.font = `24px sans-serif`;
-            ctx.fillText(this.emoji!, this.x, this.y);
+            ctx.fillText(this.emoji!, this.x-12, this.y+12);
         },
         // Change the x and y position of the emoji when the mouse is dragged
         drag: function(x:number, y:number){
@@ -174,7 +174,7 @@ function makeCursorCommand(x:number, y:number, ctx:CanvasRenderingContext2D, thi
             // Otherwise, place down the emoji
             }else{
                 ctx.font = `24px sans-serif`;
-                ctx.fillText(emoji, this.x, this.y);
+                ctx.fillText(emoji, this.x-12, this.y+12);
             }
         }
     }
