@@ -5,6 +5,9 @@ const CANVAS_WIDTH = 256;
 const CANVAS_HEIGHT = 256;
 const EXPORT_WIDTH = 1024;
 const EXPORT_HEIGHT = 1024;
+const THIN_THINKNESS = 1;
+const THICK_THICKNESS = 5;
+const EMOJI_SIZE = 24;
 const app = document.querySelector<HTMLDivElement>("#app")!;
 
 // Page setup
@@ -161,8 +164,8 @@ function makeEmojiCommand(x:number, y:number, thickness?: number, emoji?:string)
         emoji: emoji,
         // Display the emoji on the canvas, with the emoji at the x and y position
         display: function(ctx:CanvasRenderingContext2D){
-            ctx.font = `24px sans-serif`;
-            ctx.fillText(this.emoji!, this.x-12, this.y+12);
+            ctx.font = EMOJI_SIZE + `px sans-serif`;
+            ctx.fillText(this.emoji!, this.x-EMOJI_SIZE/2, this.y+EMOJI_SIZE/2);
         },
         // Change the x and y position of the emoji when the mouse is dragged
         drag: function(x:number, y:number){
@@ -173,7 +176,7 @@ function makeEmojiCommand(x:number, y:number, thickness?: number, emoji?:string)
 }
 
 // Creates a cursor command object that acts as the preview of the point that would be drawn if the mouse was clicked
-function makeCursorCommand(x:number, y:number, thickness:number = 1, emoji:string){
+function makeCursorCommand(x:number, y:number, thickness:number = THICK_THICKNESS, emoji:string){
     return {
         x: x,
         y: y,
@@ -183,12 +186,13 @@ function makeCursorCommand(x:number, y:number, thickness:number = 1, emoji:strin
             if(currentCommandConstructor === makeLineCommand){
                 ctx.beginPath();
                 ctx.lineWidth = thickness;
+                // 100 is the scale factor, so that the thickness is the same as the line being drawn. Any arbitarily large number would work
                 ctx.rect(this.x, this.y, thickness/100, thickness/100);
                 ctx.stroke();
             // Otherwise, place down the emoji
             }else{
                 ctx.font = `24px sans-serif`;
-                ctx.fillText(emoji, this.x-12, this.y+12);
+                ctx.fillText(emoji, this.x-EMOJI_SIZE/2, this.y+EMOJI_SIZE/2);
             }
         }
     }
@@ -222,7 +226,7 @@ let currentPlacer:CanBeDisplayed | undefined = undefined; // The current thing b
 const undoneLines:CanBeDisplayed[] = []; // Array to store the things that have been undone
 const redrawEvent = new Event("redraw"); // Event to trigger a redraw of the canvas, happens when there's a change in the lines array
 const toolMovedEvent = new Event("tool-moved"); // Event to trigger a redraw of the canvas, happens when the cursor moves
-let cursorCommand: CanBeDisplayed | undefined = makeCursorCommand(0, 0, 1, "🏴‍☠️"); // The command to draw the preview of the selected tool
+let cursorCommand: CanBeDisplayed | undefined = makeCursorCommand(0, 0, THICK_THICKNESS, "🏴‍☠️"); // The command to draw the preview of the selected tool
 let currentCommandConstructor: ComandConstructor = makeLineCommand; // The current command constructor, which determines if the current tool is a line or an emoji
 let currentEmoji: string = "🏴‍☠️"; // The current emoji
 let thickness = 1; // The thickness of the line being drawn
@@ -313,7 +317,7 @@ const sizeToolButtons = makeButtonSet();
 
 // Set the thickness of the line being drawn when the button is clicked
 thinButton.addEventListener("click", () => {
-    thickness = 1;
+    thickness = THIN_THINKNESS;
     currentCommandConstructor = makeLineCommand;
     sizeToolButtons.setActive(thinButton);
     canvas.dispatchEvent(toolMovedEvent);
@@ -321,7 +325,7 @@ thinButton.addEventListener("click", () => {
 
 // Set the thickness of the line being drawn when the button is clicked
 thickButton.addEventListener("click", () => {
-    thickness = 5;
+    thickness = THICK_THICKNESS;
     currentCommandConstructor = makeLineCommand;
     sizeToolButtons.setActive(thickButton);
     canvas.dispatchEvent(toolMovedEvent);
