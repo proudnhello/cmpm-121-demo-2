@@ -77,46 +77,61 @@ type Point = {x: number, y: number};
 
 // Classes/interfaces
 
+// Interface for objects that can be displayed on the canvas. May or may not be draggable
 interface CanBeDisplayed{
     display(ctx:CanvasRenderingContext2D):void;
     drag?(x:number, y:number):void;
 }
 
+// An interface for a constructor that creates a CanBeDisplayed object. May or may not have a thickness and emoji, needs at least one
 interface ComandConstructor{
     (x:number, y:number, ctx:CanvasRenderingContext2D, thickness?:number, emoji?:string):CanBeDisplayed;
 }
 
+// Makes a line command object that can be displayed on the canvas
 function makeLineCommand(x:number, y:number, ctx:CanvasRenderingContext2D, thickness:number = 1){
     return {
+        // Line command object
+        // Add the initial point to the points array
         points: [{x:x, y:y}],
+        // Set the thickness of the line
         thickness: thickness,
+
+        // Display the line on the canvas
         display: function(){
             ctx.beginPath();
             ctx.lineWidth = this.thickness;
             if (this.points.length < 0){
                 return
             }
+            // Iterate over the points array and draw a line between each point
             ctx.moveTo(this.points[0].x, this.points[0].y);
             for (let i = 1; i < this.points.length; i++) {
                 ctx.lineTo(this.points[i].x, this.points[i].y);
             }
             ctx.stroke();
         },
+        // Add a point to the points array when the mouse is dragged
         drag: function(x:number, y:number){
             this.points.push({x:x, y:y});
         }
     }
 }
 
+// Makes an emoji command object that can be displayed on the canvas
 function makeEmojiCommand(x:number, y:number, ctx:CanvasRenderingContext2D, thickness?: number, emoji?:string){
     return {
+        // Emoji command object
+        // Set the x and y position of the emoji, and the emoji itself (can actually be any string, but shhhhh)
         x: x,
         y: y,
         emoji: emoji,
+        // Display the emoji on the canvas, with the emoji at the x and y position
         display: function(){
             ctx.font = `24px sans-serif`;
             ctx.fillText(this.emoji!, this.x, this.y);
         },
+        // Change the x and y position of the emoji when the mouse is dragged
         drag: function(x:number, y:number){
             this.x = x;
             this.y = y;
@@ -124,16 +139,20 @@ function makeEmojiCommand(x:number, y:number, ctx:CanvasRenderingContext2D, thic
     }
 }
 
+// Creates a cursor command object that acts as the preview of the point that would be drawn if the mouse was clicked
 function makeCursorCommand(x:number, y:number, ctx:CanvasRenderingContext2D, thickness:number = 1, emoji:string){
     return {
         x: x,
         y: y,
         display: function(){
+            // Draw the rectangle that would be drawn if the mouse was clicked if it's a line
+            // Use the current command contructor to determine if it's a line or an emoji, b/c that's what would be drawn if the mouse was clicked
             if(currentCommandConstructor === makeLineCommand){
                 ctx.beginPath();
                 ctx.lineWidth = thickness;
                 ctx.rect(this.x, this.y, thickness/100, thickness/100);
                 ctx.stroke();
+            // Otherwise, place down the emoji
             }else{
                 ctx.font = `24px sans-serif`;
                 ctx.fillText(emoji, this.x, this.y);
@@ -142,11 +161,14 @@ function makeCursorCommand(x:number, y:number, ctx:CanvasRenderingContext2D, thi
     }
 }
 
+// The interface for button sets. Essentially, a button set is a group of buttons where only one can be active at a time
+// The active button will use the "activeTool" class, and setting a button to active will remove the class from the previous active button
 interface ButtonSet{
     activeButton:HTMLButtonElement | null;
     setActive(button:HTMLButtonElement):void;
 }
 
+// Create a button set
 function makeButtonSet():ButtonSet{
     return {
         activeButton: null,
@@ -162,30 +184,34 @@ function makeButtonSet():ButtonSet{
 
 // Variables
 
-const lines:CanBeDisplayed[] = []; // Array to store the lines that have been drawn
-let currentPlacer:CanBeDisplayed | undefined = undefined; // The current line being drawn
-const undoneLines:CanBeDisplayed[] = []; // Array to store the lines that have been undone
+const lines:CanBeDisplayed[] = []; // Array to store the things that have been drawn
+let currentPlacer:CanBeDisplayed | undefined = undefined; // The current thing being drawn
+const undoneLines:CanBeDisplayed[] = []; // Array to store the things that have been undone
 const redrawEvent = new Event("redraw"); // Event to trigger a redraw of the canvas, happens when there's a change in the lines array
-const toolMovedEvent = new Event("tool-moved"); 
-let cursorCommand: CanBeDisplayed | undefined = makeCursorCommand(0, 0, drawingContext, 1, "🏴‍☠️");
-let currentCommandConstructor: ComandConstructor = makeLineCommand;
-let currentEmoji: string = "🏴‍☠️";
+const toolMovedEvent = new Event("tool-moved"); // Event to trigger a redraw of the canvas, happens when the cursor moves
+let cursorCommand: CanBeDisplayed | undefined = makeCursorCommand(0, 0, drawingContext, 1, "🏴‍☠️"); // The command to draw the preview of the selected tool
+let currentCommandConstructor: ComandConstructor = makeLineCommand; // The current command constructor, which determines if the current tool is a line or an emoji
+let currentEmoji: string = "🏴‍☠️"; // The current emoji
 let thickness = 1; // The thickness of the line being drawn    
 
 // Functions and Event Listeners
 
 // Start drawing when the mouse is pressed down
 canvas.addEventListener("mousedown", (event) => {
+    // Remove the preview by making cursor comamnd undefined
     cursorCommand = undefined;
-    canvas.dispatchEvent(toolMovedEvent);
-    // Start a new line
-    currentPlacer = currentCommandConstructor(event.offsetX, event.offsetY, drawingContext, thickness, currentEmoji) // Start a new line with the current cursor position
+    canvas.dispatchEvent(toolMovedEvent); // Techinally unnecessary rn, as the later redraw event will do the same thing
+    // Start a new thing with the current cursor position
+    currentPlacer = currentCommandConstructor(event.offsetX, event.offsetY, drawingContext, thickness, currentEmoji) 
+    // Add the current thing to the lines array
     lines.push(currentPlacer!);
     canvas.dispatchEvent(redrawEvent);
 });
 
 // Stop drawing when the mouse is released
 canvas.addEventListener("mouseup", (event) => {
+    // If the mouse is released, stop drawing by making the current placer undefined
+    // Then draw the preview of the point by setting the cursor command
     cursorCommand = makeCursorCommand(event.offsetX, event.offsetY, drawingContext, thickness, currentEmoji);
     currentPlacer = undefined;
     canvas.dispatchEvent(redrawEvent);
@@ -200,6 +226,7 @@ canvas.addEventListener("mouseleave", () => {
 
 // Start providing a preview of the point that would be drawn if the mouse was clicked when the mouse enters the canvas
 canvas.addEventListener("mouseenter", (event) => {
+    // If the mouse enters the canvas, draw the preview of the point 
     cursorCommand = makeCursorCommand(event.offsetX, event.offsetY, drawingContext, thickness, currentEmoji);
     canvas.dispatchEvent(toolMovedEvent);
 });
@@ -213,7 +240,7 @@ clearButton.addEventListener("click", () => {
 
 // Draw a line when the mouse is moved
 canvas.addEventListener("mousemove", (event) => {
-    // if a line is being drawn, add the current cursor position to the current line
+    // if a line is being drawn, call the drag method on the current placer (assuming it exists)
     if (currentPlacer) {
         cursorCommand = undefined;
         currentPlacer!.drag!(event.offsetX, event.offsetY); // Add the current cursor position to the current line
