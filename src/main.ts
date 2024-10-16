@@ -28,17 +28,17 @@ app.append(canvasButtonDivider);
 // Creates a button to clear the canvas
 const clearButton = document.createElement("button");
 clearButton.innerHTML = "Clear";
-app.append(clearButton);
+canvasButtonDivider.append(clearButton);
 
 // Creates a button to undo the last line drawn
 const undoButton = document.createElement("button");
 undoButton.innerHTML = "Undo";
-app.append(undoButton);
+canvasButtonDivider.append(undoButton);
 
 // Creates a button to redo the last line that was undone
 const redoButton = document.createElement("button");
 redoButton.innerHTML = "Redo";
-app.append(redoButton);
+canvasButtonDivider.append(redoButton);
 
 // Creates a div to hold the thickness buttons below the canvas
 const toolButtons = document.createElement("div");
@@ -47,31 +47,50 @@ app.append(toolButtons);
 // Creates a button to set the thickness to the larger size
 const thickButton = document.createElement("button");
 thickButton.innerHTML = "Thick";
-app.append(thickButton);
+toolButtons.append(thickButton);
 
 // Creates a button to set the thickness to the smaller size
 const thinButton = document.createElement("button");
 thinButton.innerHTML = "Thin";
-app.append(thinButton);
+toolButtons.append(thinButton);
 
-// Adds a div to seperate the emojis from the brushes
-const brushToEmojiDiv = document.createElement("div");
-app.append(brushToEmojiDiv)
+// Adds a div to contain the emoji buttons
+const emojiDiv = document.createElement("div");
+app.append(emojiDiv)
 
-// Add the first emoji button
-const pirateButton = document.createElement("button");
-pirateButton.innerHTML = "🏴‍☠️";
-app.append(pirateButton);
+// Add a 
 
-// Add the second emoji button
-const ablienButton = document.createElement("button");  
-ablienButton.innerHTML = "👽"
-app.append(ablienButton);
+// Defines the emoji buttons
+// All keys are strings, so as to make it proper JSON
+// Thank you to github copilot for the syntax of ...null as HTMLButtonElement | null
+// Each emoji object has an emoji and a corresponding button, which will be useful for setting up listeners later
+let emojiObject = [
+    {"emoji": "🏴‍☠️", "button": null as HTMLButtonElement | null},
+    {"emoji": "👽", "button": null as HTMLButtonElement | null},
+    {"emoji": "🦄", "button": null as HTMLButtonElement | null}
+]
 
-// Add the third emoji button
-const unicornButton = document.createElement("button");
-unicornButton.innerHTML = "🦄"
-app.append(unicornButton);
+function updateEmojiButtons(){
+    for (let i = 0; i < emojiObject.length; i++){
+        // If the button exists, don't do anything
+        if (emojiObject[i].button){
+            continue;
+        }
+        // Otherwise, create the button and add it to the emoji div
+        emojiObject[i].button = document.createElement("button");
+        emojiObject[i].button!.innerHTML = emojiObject[i].emoji;
+        emojiDiv.append(emojiObject[i].button!);
+        // Add a listener to the button to set the current emoji to the emoji of the button
+        emojiObject[i].button!.addEventListener("click", () => {
+            currentEmoji = emojiObject[i].emoji;
+            currentCommandConstructor = makeEmojiCommand;
+            canvas.dispatchEvent(toolMovedEvent);
+            sizeToolButtons.setActive(emojiObject[i].button!);
+        });
+    }
+}
+
+updateEmojiButtons(); // Create the initial emoji buttons
 
 type Point = {x: number, y: number};
 
@@ -192,7 +211,7 @@ const toolMovedEvent = new Event("tool-moved"); // Event to trigger a redraw of 
 let cursorCommand: CanBeDisplayed | undefined = makeCursorCommand(0, 0, drawingContext, 1, "🏴‍☠️"); // The command to draw the preview of the selected tool
 let currentCommandConstructor: ComandConstructor = makeLineCommand; // The current command constructor, which determines if the current tool is a line or an emoji
 let currentEmoji: string = "🏴‍☠️"; // The current emoji
-let thickness = 1; // The thickness of the line being drawn    
+let thickness = 1; // The thickness of the line being drawn
 
 // Functions and Event Listeners
 
@@ -292,30 +311,6 @@ thickButton.addEventListener("click", () => {
     currentCommandConstructor = makeLineCommand;
     sizeToolButtons.setActive(thickButton);
     canvas.dispatchEvent(toolMovedEvent);
-});
-
-// Creates a button to set the emoji to pirate
-pirateButton.addEventListener("click", () => {
-    currentEmoji = "🏴‍☠️";
-    currentCommandConstructor = makeEmojiCommand;
-    canvas.dispatchEvent(toolMovedEvent);
-    sizeToolButtons.setActive(pirateButton);
-});
-
-// Creates a button to set the emoji to alien
-ablienButton.addEventListener("click", () => {
-    currentEmoji = "👽";
-    currentCommandConstructor = makeEmojiCommand;
-    canvas.dispatchEvent(toolMovedEvent);
-    sizeToolButtons.setActive(ablienButton);
-});
-
-// Creates a button to set the emoji to unicorn
-unicornButton.addEventListener("click", () => {
-    currentEmoji = "🦄";
-    currentCommandConstructor = makeEmojiCommand;
-    canvas.dispatchEvent(toolMovedEvent);
-    sizeToolButtons.setActive(unicornButton);
 });
 
 // Redraw the canvas when the redraw event is triggered. Uses the lines array, which stores all the lines that have been drawn as an array of points
