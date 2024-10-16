@@ -7,7 +7,7 @@ const EXPORT_WIDTH = 1024;
 const EXPORT_HEIGHT = 1024;
 const THIN_THINKNESS = 1;
 const THICK_THICKNESS = 5;
-const EMOJI_SIZE = 24;
+const EMOJI_SIZE = 24; 
 const app = document.querySelector<HTMLDivElement>("#app")!;
 
 // Page setup
