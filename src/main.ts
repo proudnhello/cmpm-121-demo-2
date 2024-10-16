@@ -3,6 +3,8 @@ import "./style.css";
 const APP_NAME = "TS Paint";
 const CANVAS_WIDTH = 256;
 const CANVAS_HEIGHT = 256;
+const EXPORT_WIDTH = 1024;
+const EXPORT_HEIGHT = 1024;
 const app = document.querySelector<HTMLDivElement>("#app")!;
 
 // Page setup
@@ -63,6 +65,15 @@ toolButtons.append(emojiButton);
 const emojiDiv = document.createElement("div");
 app.append(emojiDiv)
 
+// Adds a div to contain the export button
+const exportDiv = document.createElement("div");
+app.append(exportDiv);
+
+// Adds a button to export the canvas as an image
+const exportButton = document.createElement("button");
+exportButton.innerHTML = "Export";
+exportDiv.append(exportButton);
+
 // Defines the emoji buttons
 // All keys are strings, so as to make it proper JSON
 // Thank you to github copilot for the syntax of ...null as HTMLButtonElement | null
@@ -107,11 +118,11 @@ interface CanBeDisplayed{
 
 // An interface for a constructor that creates a CanBeDisplayed object. May or may not have a thickness and emoji, needs at least one
 interface ComandConstructor{
-    (x:number, y:number, ctx:CanvasRenderingContext2D, thickness?:number, emoji?:string):CanBeDisplayed;
+    (x:number, y:number, thickness?:number, emoji?:string):CanBeDisplayed;
 }
 
 // Makes a line command object that can be displayed on the canvas
-function makeLineCommand(x:number, y:number, ctx:CanvasRenderingContext2D, thickness:number = 1){
+function makeLineCommand(x:number, y:number, thickness:number = 1){
     return {
         // Line command object
         // Add the initial point to the points array
@@ -120,7 +131,7 @@ function makeLineCommand(x:number, y:number, ctx:CanvasRenderingContext2D, thick
         thickness: thickness,
 
         // Display the line on the canvas
-        display: function(){
+        display: function(ctx:CanvasRenderingContext2D){
             ctx.beginPath();
             ctx.lineWidth = this.thickness;
             if (this.points.length < 0){
@@ -141,7 +152,7 @@ function makeLineCommand(x:number, y:number, ctx:CanvasRenderingContext2D, thick
 }
 
 // Makes an emoji command object that can be displayed on the canvas
-function makeEmojiCommand(x:number, y:number, ctx:CanvasRenderingContext2D, thickness?: number, emoji?:string){
+function makeEmojiCommand(x:number, y:number, thickness?: number, emoji?:string){
     return {
         // Emoji command object
         // Set the x and y position of the emoji, and the emoji itself (can actually be any string, but shhhhh)
@@ -149,7 +160,7 @@ function makeEmojiCommand(x:number, y:number, ctx:CanvasRenderingContext2D, thic
         y: y,
         emoji: emoji,
         // Display the emoji on the canvas, with the emoji at the x and y position
-        display: function(){
+        display: function(ctx:CanvasRenderingContext2D){
             ctx.font = `24px sans-serif`;
             ctx.fillText(this.emoji!, this.x-12, this.y+12);
         },
@@ -162,11 +173,11 @@ function makeEmojiCommand(x:number, y:number, ctx:CanvasRenderingContext2D, thic
 }
 
 // Creates a cursor command object that acts as the preview of the point that would be drawn if the mouse was clicked
-function makeCursorCommand(x:number, y:number, ctx:CanvasRenderingContext2D, thickness:number = 1, emoji:string){
+function makeCursorCommand(x:number, y:number, thickness:number = 1, emoji:string){
     return {
         x: x,
         y: y,
-        display: function(){
+        display: function(ctx:CanvasRenderingContext2D){
             // Draw the rectangle that would be drawn if the mouse was clicked if it's a line
             // Use the current command contructor to determine if it's a line or an emoji, b/c that's what would be drawn if the mouse was clicked
             if(currentCommandConstructor === makeLineCommand){
@@ -211,7 +222,7 @@ let currentPlacer:CanBeDisplayed | undefined = undefined; // The current thing b
 const undoneLines:CanBeDisplayed[] = []; // Array to store the things that have been undone
 const redrawEvent = new Event("redraw"); // Event to trigger a redraw of the canvas, happens when there's a change in the lines array
 const toolMovedEvent = new Event("tool-moved"); // Event to trigger a redraw of the canvas, happens when the cursor moves
-let cursorCommand: CanBeDisplayed | undefined = makeCursorCommand(0, 0, drawingContext, 1, "🏴‍☠️"); // The command to draw the preview of the selected tool
+let cursorCommand: CanBeDisplayed | undefined = makeCursorCommand(0, 0, 1, "🏴‍☠️"); // The command to draw the preview of the selected tool
 let currentCommandConstructor: ComandConstructor = makeLineCommand; // The current command constructor, which determines if the current tool is a line or an emoji
 let currentEmoji: string = "🏴‍☠️"; // The current emoji
 let thickness = 1; // The thickness of the line being drawn
@@ -224,7 +235,7 @@ canvas.addEventListener("mousedown", (event) => {
     cursorCommand = undefined;
     canvas.dispatchEvent(toolMovedEvent); // Techinally unnecessary rn, as the later redraw event will do the same thing
     // Start a new thing with the current cursor position
-    currentPlacer = currentCommandConstructor(event.offsetX, event.offsetY, drawingContext, thickness, currentEmoji) 
+    currentPlacer = currentCommandConstructor(event.offsetX, event.offsetY, thickness, currentEmoji) 
     // Add the current thing to the lines array
     lines.push(currentPlacer!);
     canvas.dispatchEvent(redrawEvent);
@@ -234,7 +245,7 @@ canvas.addEventListener("mousedown", (event) => {
 canvas.addEventListener("mouseup", (event) => {
     // If the mouse is released, stop drawing by making the current placer undefined
     // Then draw the preview of the point by setting the cursor command
-    cursorCommand = makeCursorCommand(event.offsetX, event.offsetY, drawingContext, thickness, currentEmoji);
+    cursorCommand = makeCursorCommand(event.offsetX, event.offsetY, thickness, currentEmoji);
     currentPlacer = undefined;
     canvas.dispatchEvent(redrawEvent);
 });
@@ -249,7 +260,7 @@ canvas.addEventListener("mouseleave", () => {
 // Start providing a preview of the point that would be drawn if the mouse was clicked when the mouse enters the canvas
 canvas.addEventListener("mouseenter", (event) => {
     // If the mouse enters the canvas, draw the preview of the point 
-    cursorCommand = makeCursorCommand(event.offsetX, event.offsetY, drawingContext, thickness, currentEmoji);
+    cursorCommand = makeCursorCommand(event.offsetX, event.offsetY, thickness, currentEmoji);
     canvas.dispatchEvent(toolMovedEvent);
 });
 
@@ -268,7 +279,7 @@ canvas.addEventListener("mousemove", (event) => {
         currentPlacer!.drag!(event.offsetX, event.offsetY); // Add the current cursor position to the current line
         canvas.dispatchEvent(redrawEvent);
     }else{ // Otherwise, draw a preview of the point that would be drawn if the mouse was clicked
-        cursorCommand = makeCursorCommand(event.offsetX, event.offsetY, drawingContext, thickness, currentEmoji);
+        cursorCommand = makeCursorCommand(event.offsetX, event.offsetY, thickness, currentEmoji);
         canvas.dispatchEvent(toolMovedEvent);
     }
     canvas.dispatchEvent(toolMovedEvent);
@@ -323,18 +334,45 @@ emojiButton.addEventListener("click", () => {
     updateEmojiButtons();
 });
 
+// Export the canvas as an image when the button is clicked
+exportButton.addEventListener("click", () => {
+    // Create a canvas element to hold the image
+    const exportCanvas = document.createElement("canvas");
+    exportCanvas.width = EXPORT_WIDTH;
+    exportCanvas.height = EXPORT_HEIGHT;
+    const exportContext = exportCanvas.getContext("2d")!;
+    exportContext.scale(EXPORT_WIDTH/CANVAS_WIDTH, EXPORT_HEIGHT/CANVAS_HEIGHT);
+
+    app.append(exportCanvas);
+
+    // Draw the canvas onto the export canvas
+    redrawCanvas(exportContext);
+
+    app.append(exportCanvas);
+
+    // Save the image as a png
+    const anchor = document.createElement("a");
+    anchor.href = exportCanvas.toDataURL("image/png");
+    anchor.download = "sketchpad.png";
+    anchor.click();
+
+    // Remove the anchor
+    anchor.remove();
+    exportCanvas.remove();
+});
+
 // Redraw the canvas when the redraw event is triggered. Uses the lines array, which stores all the lines that have been drawn as an array of points
-function redrawCanvas() {
-    drawingContext.clearRect(0, 0, canvas.width, canvas.height); 
+function redrawCanvas(ctx:CanvasRenderingContext2D){
+    ctx.clearRect(0, 0, canvas.width, canvas.height); 
 
     for (const line of lines) {
-        line.display(drawingContext);
+        line.display(ctx);
     } 
 
     if (cursorCommand){
-        cursorCommand.display(drawingContext);
+        cursorCommand.display(ctx);
     }
 }
 
-canvas.addEventListener("redraw", redrawCanvas);
-canvas.addEventListener("tool-moved", redrawCanvas);
+canvas.addEventListener("redraw", redrawCanvas.bind(null, drawingContext));
+canvas.addEventListener("tool-moved", redrawCanvas.bind(null, drawingContext));
