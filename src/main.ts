@@ -156,8 +156,9 @@ function placeSticker(ctx: CanvasRenderingContext2D, x:number, y:number, emoji:s
     ctx.rotate(angleInRadians);
 
     ctx.font = EMOJI_SIZE + `px sans-serif`;
-    // -(EMOJI_SIZE/4) is used to center the emoji. I don't know why it's 4, I assume I've done my trigonometry wrong, but it works
-    ctx.fillText(emoji, -(EMOJI_SIZE/4), 0);
+    // -(EMOJI_SIZE/3) is used to center the emoji. I don't know why it's 4, I assume I've done my trigonometry wrong, but it works
+    // Annoyingly, not all emojis are the same size or centered, so this doesn't work for all emojis. But it works (or is close) for most
+    ctx.fillText(emoji, -(EMOJI_SIZE/3), 0);
 
     ctx.restore();
 }
