@@ -3,6 +3,8 @@ import "./style.css";
 const APP_NAME = "TS Paint";
 const CANVAS_WIDTH = 256;
 const CANVAS_HEIGHT = 256;
+const PREVIEW_WIDTH = 50;
+const PREVIEW_HEIGHT = 50;
 const EXPORT_WIDTH = 1024;
 const EXPORT_HEIGHT = 1024;
 const THIN_THINKNESS = 1;
@@ -81,6 +83,17 @@ rotationRange.step = "1";
 rotationRange.value = "0";
 app.append(rotationRange);
 
+// Adds a div to contain the small preview of the selected tool
+const previewDiv = document.createElement("div");
+app.append(previewDiv);
+
+// Adds a canvas to show a preview of the selected tool
+const previewCanvas = document.createElement("canvas");
+previewCanvas.width = PREVIEW_WIDTH;
+previewCanvas.height = PREVIEW_HEIGHT;
+previewCanvas.classList.add("previewCanvas");
+previewDiv.append(previewCanvas);
+
 // Adds a div to contain the export button
 const exportDiv = document.createElement("div");
 app.append(exportDiv);
@@ -116,6 +129,8 @@ function updateEmojiButtons(){
             currentCommandConstructor = makeEmojiCommand;
             canvas.dispatchEvent(toolMovedEvent);
             sizeToolButtons.setActive(emojiObject[i].button!);
+            previewContext.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+            placeSticker(previewContext, previewCanvas.width/2, previewCanvas.width/2, currentEmoji, rotation);
         });
     }
 }
@@ -141,7 +156,8 @@ function placeSticker(ctx: CanvasRenderingContext2D, x:number, y:number, emoji:s
     ctx.rotate(angleInRadians);
 
     ctx.font = EMOJI_SIZE + `px sans-serif`;
-    ctx.fillText(emoji, 0, 0);
+    // -(EMOJI_SIZE/4) is used to center the emoji. I don't know why it's 4, I assume I've done my trigonometry wrong, but it works
+    ctx.fillText(emoji, -(EMOJI_SIZE/4), 0);
 
     ctx.restore();
 }
@@ -256,7 +272,7 @@ function makeButtonSet():ButtonSet{
 
 // Variables
 
-let rotation = 34; // The rotation of the emoji
+let rotation = 0; // The rotation of the emoji
 const lines:CanBeDisplayed[] = []; // Array to store the things that have been drawn
 let currentPlacer:CanBeDisplayed | undefined = undefined; // The current thing being drawn
 const undoneLines:CanBeDisplayed[] = []; // Array to store the things that have been undone
@@ -266,6 +282,7 @@ let cursorCommand: CanBeDisplayed | undefined = makeCursorCommand(0, 0, THICK_TH
 let currentCommandConstructor: ComandConstructor = makeLineCommand; // The current command constructor, which determines if the current tool is a line or an emoji
 let currentEmoji: string = "🏴‍☠️"; // The current emoji
 let thickness = 1; // The thickness of the line being drawn
+const previewContext = previewCanvas.getContext("2d")!;
 
 // Functions and Event Listeners
 
@@ -403,7 +420,9 @@ exportButton.addEventListener("click", () => {
 
 // Add event listeners to the rotation slider
 rotationRange.addEventListener("input", (event) => {
+    previewContext.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
     rotation = parseInt((event.target as HTMLInputElement).value);
+    placeSticker(previewContext, previewCanvas.width/2, previewCanvas.width/2, currentEmoji, rotation);
     canvas.dispatchEvent(toolMovedEvent);
 });
 
