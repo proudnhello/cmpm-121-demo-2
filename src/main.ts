@@ -68,6 +68,19 @@ toolButtons.append(emojiButton);
 const emojiDiv = document.createElement("div");
 app.append(emojiDiv)
 
+const rotationText = document.createElement("p");
+rotationText.innerHTML = "Rotation";
+app.append(rotationText);
+
+// Adds a range input to control the rotation of the emoji
+const rotationRange = document.createElement("input");
+rotationRange.type = "range";
+rotationRange.min = "0";
+rotationRange.max = "360";
+rotationRange.step = "1";
+rotationRange.value = "0";
+app.append(rotationRange);
+
 // Adds a div to contain the export button
 const exportDiv = document.createElement("div");
 app.append(exportDiv);
@@ -107,9 +120,33 @@ function updateEmojiButtons(){
     }
 }
 
-updateEmojiButtons(); // Create the initial emoji buttons
+function placeSticker(ctx: CanvasRenderingContext2D, x:number, y:number, emoji:string, rotation:number){
+    const angleInRadians = rotation * Math.PI / 180;
 
-type Point = {x: number, y: number};
+    ctx.save();
+
+    // The emoji must be offset by half its size. So, the vector that represents that has a magnitude of sqrt((EMOJI_SIZE/2)^2)
+    // It is at a 135 degree angle, b/c x is negative and y is positive
+    const offsetMagnitude = Math.sqrt((EMOJI_SIZE/2)**2);
+    const offsetAngle = 135 * Math.PI / 180;
+
+    // Now, we can find the new angle of the offset vector by adding the rotation angle to the offset angle
+    const newAngle = angleInRadians + offsetAngle;
+
+    // Using trigonometry, we can find the x and y components of the offset vector
+    const xOffset = offsetMagnitude * Math.cos(newAngle);
+    const yOffset = offsetMagnitude * Math.sin(newAngle);
+
+    ctx.translate(x+xOffset, y+yOffset);
+    ctx.rotate(angleInRadians);
+
+    ctx.font = EMOJI_SIZE + `px sans-serif`;
+    ctx.fillText(emoji, 0, 0);
+
+    ctx.restore();
+}
+
+updateEmojiButtons(); // Create the initial emoji buttons
 
 // Classes/interfaces
 
@@ -121,11 +158,11 @@ interface CanBeDisplayed{
 
 // An interface for a constructor that creates a CanBeDisplayed object. May or may not have a thickness and emoji, needs at least one
 interface ComandConstructor{
-    (x:number, y:number, thickness?:number, emoji?:string):CanBeDisplayed;
+    (x:number, y:number, extraInfo:number, text:string, rotation:number):CanBeDisplayed;
 }
 
 // Makes a line command object that can be displayed on the canvas
-function makeLineCommand(x:number, y:number, thickness:number = 1){
+function makeLineCommand(x:number, y:number, thickness:number = THICK_THICKNESS){
     return {
         // Line command object
         // Add the initial point to the points array
@@ -155,7 +192,7 @@ function makeLineCommand(x:number, y:number, thickness:number = 1){
 }
 
 // Makes an emoji command object that can be displayed on the canvas
-function makeEmojiCommand(x:number, y:number, thickness?: number, emoji?:string){
+function makeEmojiCommand(x:number, y:number, thickness: number, emoji:string, rotation:number){
     return {
         // Emoji command object
         // Set the x and y position of the emoji, and the emoji itself (can actually be any string, but shhhhh)
@@ -164,8 +201,7 @@ function makeEmojiCommand(x:number, y:number, thickness?: number, emoji?:string)
         emoji: emoji,
         // Display the emoji on the canvas, with the emoji at the x and y position
         display: function(ctx:CanvasRenderingContext2D){
-            ctx.font = EMOJI_SIZE + `px sans-serif`;
-            ctx.fillText(this.emoji!, this.x-EMOJI_SIZE/2, this.y+EMOJI_SIZE/2);
+            placeSticker(ctx, this.x, this.y, this.emoji, rotation);
         },
         // Change the x and y position of the emoji when the mouse is dragged
         drag: function(x:number, y:number){
@@ -176,7 +212,7 @@ function makeEmojiCommand(x:number, y:number, thickness?: number, emoji?:string)
 }
 
 // Creates a cursor command object that acts as the preview of the point that would be drawn if the mouse was clicked
-function makeCursorCommand(x:number, y:number, thickness:number = THICK_THICKNESS, emoji:string){
+function makeCursorCommand(x:number, y:number, thickness:number = THICK_THICKNESS, emoji:string, rotation:number){
     return {
         x: x,
         y: y,
@@ -191,8 +227,7 @@ function makeCursorCommand(x:number, y:number, thickness:number = THICK_THICKNES
                 ctx.stroke();
             // Otherwise, place down the emoji
             }else{
-                ctx.font = `24px sans-serif`;
-                ctx.fillText(emoji, this.x-EMOJI_SIZE/2, this.y+EMOJI_SIZE/2);
+                placeSticker(ctx, this.x, this.y, emoji, rotation);
             }
         }
     }
@@ -221,12 +256,13 @@ function makeButtonSet():ButtonSet{
 
 // Variables
 
+let rotation = 34; // The rotation of the emoji
 const lines:CanBeDisplayed[] = []; // Array to store the things that have been drawn
 let currentPlacer:CanBeDisplayed | undefined = undefined; // The current thing being drawn
 const undoneLines:CanBeDisplayed[] = []; // Array to store the things that have been undone
 const redrawEvent = new Event("redraw"); // Event to trigger a redraw of the canvas, happens when there's a change in the lines array
 const toolMovedEvent = new Event("tool-moved"); // Event to trigger a redraw of the canvas, happens when the cursor moves
-let cursorCommand: CanBeDisplayed | undefined = makeCursorCommand(0, 0, THICK_THICKNESS, "🏴‍☠️"); // The command to draw the preview of the selected tool
+let cursorCommand: CanBeDisplayed | undefined = makeCursorCommand(0, 0, THICK_THICKNESS, "🏴‍☠️", rotation); // The command to draw the preview of the selected tool
 let currentCommandConstructor: ComandConstructor = makeLineCommand; // The current command constructor, which determines if the current tool is a line or an emoji
 let currentEmoji: string = "🏴‍☠️"; // The current emoji
 let thickness = 1; // The thickness of the line being drawn
@@ -239,7 +275,7 @@ canvas.addEventListener("mousedown", (event) => {
     cursorCommand = undefined;
     canvas.dispatchEvent(toolMovedEvent); // Techinally unnecessary rn, as the later redraw event will do the same thing
     // Start a new thing with the current cursor position
-    currentPlacer = currentCommandConstructor(event.offsetX, event.offsetY, thickness, currentEmoji) 
+    currentPlacer = currentCommandConstructor(event.offsetX, event.offsetY, thickness, currentEmoji, rotation) 
     // Add the current thing to the lines array
     lines.push(currentPlacer!);
     canvas.dispatchEvent(redrawEvent);
@@ -249,7 +285,7 @@ canvas.addEventListener("mousedown", (event) => {
 canvas.addEventListener("mouseup", (event) => {
     // If the mouse is released, stop drawing by making the current placer undefined
     // Then draw the preview of the point by setting the cursor command
-    cursorCommand = makeCursorCommand(event.offsetX, event.offsetY, thickness, currentEmoji);
+    cursorCommand = makeCursorCommand(event.offsetX, event.offsetY, thickness, currentEmoji, rotation);
     currentPlacer = undefined;
     canvas.dispatchEvent(redrawEvent);
 });
@@ -264,7 +300,7 @@ canvas.addEventListener("mouseleave", () => {
 // Start providing a preview of the point that would be drawn if the mouse was clicked when the mouse enters the canvas
 canvas.addEventListener("mouseenter", (event) => {
     // If the mouse enters the canvas, draw the preview of the point 
-    cursorCommand = makeCursorCommand(event.offsetX, event.offsetY, thickness, currentEmoji);
+    cursorCommand = makeCursorCommand(event.offsetX, event.offsetY, thickness, currentEmoji, rotation);
     canvas.dispatchEvent(toolMovedEvent);
 });
 
@@ -283,7 +319,7 @@ canvas.addEventListener("mousemove", (event) => {
         currentPlacer!.drag!(event.offsetX, event.offsetY); // Add the current cursor position to the current line
         canvas.dispatchEvent(redrawEvent);
     }else{ // Otherwise, draw a preview of the point that would be drawn if the mouse was clicked
-        cursorCommand = makeCursorCommand(event.offsetX, event.offsetY, thickness, currentEmoji);
+        cursorCommand = makeCursorCommand(event.offsetX, event.offsetY, thickness, currentEmoji, rotation);
         canvas.dispatchEvent(toolMovedEvent);
     }
     canvas.dispatchEvent(toolMovedEvent);
@@ -363,6 +399,12 @@ exportButton.addEventListener("click", () => {
     // Remove the anchor
     anchor.remove();
     exportCanvas.remove();
+});
+
+// Add event listeners to the rotation slider
+rotationRange.addEventListener("input", (event) => {
+    rotation = parseInt((event.target as HTMLInputElement).value);
+    canvas.dispatchEvent(toolMovedEvent);
 });
 
 // Redraw the canvas when the redraw event is triggered. Uses the lines array, which stores all the lines that have been drawn as an array of points
