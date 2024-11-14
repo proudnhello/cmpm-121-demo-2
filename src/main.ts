@@ -14,6 +14,14 @@ const app = document.querySelector<HTMLDivElement>("#app")!;
 
 // Page setup
 
+function createButton(text: string, parent: HTMLElement, onClick: () => void): HTMLButtonElement {
+    const button = document.createElement("button");
+    button.innerHTML = text;
+    button.addEventListener("click", onClick);
+    parent.append(button);
+    return button;
+}
+
 // Creates the title of the app on the page
 document.title = APP_NAME;
 const pageTitle = document.createElement("h1");
@@ -33,38 +41,26 @@ canvasButtonDivider.innerHTML = "<br>";
 app.append(canvasButtonDivider);
 
 // Creates a button to clear the canvas
-const clearButton = document.createElement("button");
-clearButton.innerHTML = "Clear";
-canvasButtonDivider.append(clearButton);
+createButton("Clear", canvasButtonDivider, clearCanvas);
 
 // Creates a button to undo the last line drawn
-const undoButton = document.createElement("button");
-undoButton.innerHTML = "Undo";
-canvasButtonDivider.append(undoButton);
+createButton("Undo", canvasButtonDivider, undoMove);
 
 // Creates a button to redo the last line that was undone
-const redoButton = document.createElement("button");
-redoButton.innerHTML = "Redo";
-canvasButtonDivider.append(redoButton);
+createButton("Redo", canvasButtonDivider, redoMove);
 
 // Creates a div to hold the thickness buttons below the canvas
 const toolButtons = document.createElement("div");
 app.append(toolButtons);
 
 // Creates a button to set the thickness to the larger size
-const thickButton = document.createElement("button");
-thickButton.innerHTML = "Thick";
-toolButtons.append(thickButton);
+const thickButton = createButton("Thick", toolButtons, () => setThickness(THICK_THICKNESS, thickButton));
 
 // Creates a button to set the thickness to the smaller size
-const thinButton = document.createElement("button");
-thinButton.innerHTML = "Thin";
-toolButtons.append(thinButton);
+const thinButton = createButton("Thin", toolButtons, () => setThickness(THIN_THINKNESS, thinButton));
 
 // Create a button to add a new emoji
-const emojiButton = document.createElement("button");
-emojiButton.innerHTML = "Custom Sticker";
-toolButtons.append(emojiButton);
+createButton("Custom Sticker", toolButtons, createEmoji);
 
 // Adds a div to contain the emoji buttons
 const emojiDiv = document.createElement("div");
@@ -99,9 +95,16 @@ const exportDiv = document.createElement("div");
 app.append(exportDiv);
 
 // Adds a button to export the canvas as an image
-const exportButton = document.createElement("button");
-exportButton.innerHTML = "Export";
-exportDiv.append(exportButton);
+createButton("Export", exportDiv, exportCanvas);
+
+function previewCustomSticker(emojiIndex: number) {
+    currentEmoji = emojiObject[emojiIndex].emoji;
+    currentCommandConstructor = makeEmojiCommand;
+    canvas.dispatchEvent(toolMovedEvent);
+    sizeToolButtons.setActive(emojiObject[emojiIndex].button!);
+    previewContext.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+    placeSticker(previewContext, previewCanvas.width/2, previewCanvas.width/2, currentEmoji, rotation);
+}
 
 // Defines the emoji buttons
 // All keys are strings, so as to make it proper JSON
@@ -120,18 +123,7 @@ function updateEmojiButtons(){
             continue;
         }
         // Otherwise, create the button and add it to the emoji div
-        emojiObject[i].button = document.createElement("button");
-        emojiObject[i].button!.innerHTML = emojiObject[i].emoji;
-        emojiDiv.append(emojiObject[i].button!);
-        // Add a listener to the button to set the current emoji to the emoji of the button
-        emojiObject[i].button!.addEventListener("click", () => {
-            currentEmoji = emojiObject[i].emoji;
-            currentCommandConstructor = makeEmojiCommand;
-            canvas.dispatchEvent(toolMovedEvent);
-            sizeToolButtons.setActive(emojiObject[i].button!);
-            previewContext.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
-            placeSticker(previewContext, previewCanvas.width/2, previewCanvas.width/2, currentEmoji, rotation);
-        });
+        emojiObject[i].button = createButton(emojiObject[i].emoji, emojiDiv, () => previewCustomSticker(i));
     }
 }
 
@@ -284,8 +276,23 @@ let currentCommandConstructor: ComandConstructor = makeLineCommand; // The curre
 let currentEmoji: string = "🏴‍☠️"; // The current emoji
 let thickness = 1; // The thickness of the line being drawn
 const previewContext = previewCanvas.getContext("2d")!;
+// Creates a button set for size tools
+const sizeToolButtons = makeButtonSet();
 
 // Functions and Event Listeners
+
+function setThickness(newThickness:number, button:HTMLButtonElement) {
+    thickness = newThickness;
+    currentCommandConstructor = makeLineCommand;
+    sizeToolButtons.setActive(button);
+    canvas.dispatchEvent(toolMovedEvent);
+}
+
+function clearCanvas() {
+    drawingContext.clearRect(0, 0, canvas.width, canvas.height);
+    lines.length = 0; // This empties the array. It is the same as lines = [], if lines was a let instead of a const
+    undoneLines.length = 0; 
+}
 
 // Start drawing when the mouse is pressed down
 canvas.addEventListener("mousedown", (event) => {
@@ -322,13 +329,6 @@ canvas.addEventListener("mouseenter", (event) => {
     canvas.dispatchEvent(toolMovedEvent);
 });
 
-// Clear the canvas when the button is clicked
-clearButton.addEventListener("click", () => {
-    drawingContext.clearRect(0, 0, canvas.width, canvas.height);
-    lines.length = 0; // This empties the array. It is the same as lines = [], if lines was a let instead of a const
-    undoneLines.length = 0; 
-});
-
 // Draw a line when the mouse is moved
 canvas.addEventListener("mousemove", (event) => {
     // if a line is being drawn, call the drag method on the current placer (assuming it exists)
@@ -343,9 +343,8 @@ canvas.addEventListener("mousemove", (event) => {
     canvas.dispatchEvent(toolMovedEvent);
 });
 
-
 // Undo the last line drawn when the button is clicked
-undoButton.addEventListener("click", () => {
+function undoMove() {
     if (lines.length > 0) {
         const lastLine = lines.pop();
         if (lastLine) {
@@ -353,10 +352,10 @@ undoButton.addEventListener("click", () => {
         }
         canvas.dispatchEvent(redrawEvent);
     }
-});
+}
 
 // Redo the last line that was undone when the button is clicked
-redoButton.addEventListener("click", () => {
+function redoMove() {
     if (undoneLines.length > 0) {
         const lastUndoneLine = undoneLines.pop();
         if (lastUndoneLine) {
@@ -364,36 +363,17 @@ redoButton.addEventListener("click", () => {
         }
         canvas.dispatchEvent(redrawEvent);
     }
-});
-
-// Creates a button set for size tools
-const sizeToolButtons = makeButtonSet();
-
-// Set the thickness of the line being drawn when the button is clicked
-thinButton.addEventListener("click", () => {
-    thickness = THIN_THINKNESS;
-    currentCommandConstructor = makeLineCommand;
-    sizeToolButtons.setActive(thinButton);
-    canvas.dispatchEvent(toolMovedEvent);
-});
-
-// Set the thickness of the line being drawn when the button is clicked
-thickButton.addEventListener("click", () => {
-    thickness = THICK_THICKNESS;
-    currentCommandConstructor = makeLineCommand;
-    sizeToolButtons.setActive(thickButton);
-    canvas.dispatchEvent(toolMovedEvent);
-});
+}
 
 // When the add emoji button is clicked, add a new emoji to the emoji buttons array, and update the emoji buttons
-emojiButton.addEventListener("click", () => {
+function createEmoji() {
     const stickerText:string = prompt("Custom Sticker Text:", "Put text here")!;
     emojiObject.push({"emoji": stickerText, "button": null});
     updateEmojiButtons();
-});
+}
 
 // Export the canvas as an image when the button is clicked
-exportButton.addEventListener("click", () => {
+function exportCanvas() {
     // Create a canvas element to hold the image
     const exportCanvas = document.createElement("canvas");
     exportCanvas.width = EXPORT_WIDTH;
@@ -417,7 +397,7 @@ exportButton.addEventListener("click", () => {
     // Remove the anchor
     anchor.remove();
     exportCanvas.remove();
-});
+};
 
 // Add event listeners to the rotation slider
 rotationRange.addEventListener("input", (event) => {
