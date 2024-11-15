@@ -66,6 +66,16 @@ createButton("Custom Sticker", toolButtons, createEmoji);
 const emojiDiv = document.createElement("div");
 app.append(emojiDiv)
 
+
+const colorText = document.createElement("p");
+colorText.innerHTML = "Draw Color";
+app.append(colorText);
+
+const ColorPicker = document.createElement("input");
+ColorPicker.type = "color";
+app.append(ColorPicker);
+
+
 const rotationText = document.createElement("p");
 rotationText.innerHTML = "Rotation";
 app.append(rotationText);
@@ -167,21 +177,23 @@ interface CanBeDisplayed{
 
 // An interface for a constructor that creates a CanBeDisplayed object. May or may not have a thickness and emoji, needs at least one
 interface ComandConstructor{
-    (x:number, y:number, extraInfo:number, text:string, rotation:number):CanBeDisplayed;
+    (x:number, y:number, extraInfo:number, text:string, rotation:number, color: string):CanBeDisplayed;
 }
 
 // Makes a line command object that can be displayed on the canvas
-function makeLineCommand(x:number, y:number, thickness:number = THICK_THICKNESS){
+function makeLineCommand(x:number, y:number, thickness:number = THICK_THICKNESS, text:string, rotation:number, drawColor:string){
     return {
         // Line command object
         // Add the initial point to the points array
         points: [{x:x, y:y}],
         // Set the thickness of the line
         thickness: thickness,
+        drawColor: drawColor,
 
         // Display the line on the canvas
         display: function(ctx:CanvasRenderingContext2D){
             ctx.beginPath();
+            ctx.strokeStyle = this.drawColor;
             ctx.lineWidth = this.thickness;
             if (this.points.length < 0){
                 return
@@ -201,7 +213,7 @@ function makeLineCommand(x:number, y:number, thickness:number = THICK_THICKNESS)
 }
 
 // Makes an emoji command object that can be displayed on the canvas
-function makeEmojiCommand(x:number, y:number, thickness: number, emoji:string, rotation:number){
+function makeEmojiCommand(x:number, y:number, thickness: number, emoji:string, rotation:number, drawColor:string){
     return {
         // Emoji command object
         // Set the x and y position of the emoji, and the emoji itself (can actually be any string, but shhhhh)
@@ -221,7 +233,7 @@ function makeEmojiCommand(x:number, y:number, thickness: number, emoji:string, r
 }
 
 // Creates a cursor command object that acts as the preview of the point that would be drawn if the mouse was clicked
-function makeCursorCommand(x:number, y:number, thickness:number = THICK_THICKNESS, emoji:string, rotation:number){
+function makeCursorCommand(x:number, y:number, thickness:number = THICK_THICKNESS, emoji:string, rotation:number, drawColor:string = "black"){
     return {
         x: x,
         y: y,
@@ -231,6 +243,8 @@ function makeCursorCommand(x:number, y:number, thickness:number = THICK_THICKNES
             if(currentCommandConstructor === makeLineCommand){
                 ctx.beginPath();
                 ctx.lineWidth = thickness;
+                ctx.strokeStyle = drawColor;
+                
                 // 100 is the scale factor, so that the thickness is the same as the line being drawn. Any arbitarily large number would work
                 ctx.rect(this.x, this.y, thickness/100, thickness/100);
                 ctx.stroke();
@@ -271,10 +285,11 @@ let currentPlacer:CanBeDisplayed | undefined = undefined; // The current thing b
 const undoneLines:CanBeDisplayed[] = []; // Array to store the things that have been undone
 const redrawEvent = new Event("redraw"); // Event to trigger a redraw of the canvas, happens when there's a change in the lines array
 const toolMovedEvent = new Event("tool-moved"); // Event to trigger a redraw of the canvas, happens when the cursor moves
-let cursorCommand: CanBeDisplayed | undefined = makeCursorCommand(0, 0, THICK_THICKNESS, "🏴‍☠️", rotation); // The command to draw the preview of the selected tool
+let cursorCommand: CanBeDisplayed | undefined = makeCursorCommand(0, 0, THICK_THICKNESS, "🏴‍☠️", rotation, "black"); // The command to draw the preview of the selected tool
 let currentCommandConstructor: ComandConstructor = makeLineCommand; // The current command constructor, which determines if the current tool is a line or an emoji
 let currentEmoji: string = "🏴‍☠️"; // The current emoji
 let thickness = 1; // The thickness of the line being drawn
+let currentDrawColor = "black"// The color of the line being drawn
 const previewContext = previewCanvas.getContext("2d")!;
 // Creates a button set for size tools
 const sizeToolButtons = makeButtonSet();
@@ -285,6 +300,12 @@ function setThickness(newThickness:number, button:HTMLButtonElement) {
     thickness = newThickness;
     currentCommandConstructor = makeLineCommand;
     sizeToolButtons.setActive(button);
+    canvas.dispatchEvent(toolMovedEvent);
+}
+
+function setColor(newColor:string) {
+    currentDrawColor = newColor;
+    currentCommandConstructor = makeLineCommand;
     canvas.dispatchEvent(toolMovedEvent);
 }
 
@@ -300,7 +321,7 @@ canvas.addEventListener("mousedown", (event) => {
     cursorCommand = undefined;
     canvas.dispatchEvent(toolMovedEvent); // Techinally unnecessary rn, as the later redraw event will do the same thing
     // Start a new thing with the current cursor position
-    currentPlacer = currentCommandConstructor(event.offsetX, event.offsetY, thickness, currentEmoji, rotation) 
+    currentPlacer = currentCommandConstructor(event.offsetX, event.offsetY, thickness, currentEmoji, rotation, currentDrawColor) 
     // Add the current thing to the lines array
     lines.push(currentPlacer!);
     canvas.dispatchEvent(redrawEvent);
@@ -310,7 +331,7 @@ canvas.addEventListener("mousedown", (event) => {
 canvas.addEventListener("mouseup", (event) => {
     // If the mouse is released, stop drawing by making the current placer undefined
     // Then draw the preview of the point by setting the cursor command
-    cursorCommand = makeCursorCommand(event.offsetX, event.offsetY, thickness, currentEmoji, rotation);
+    cursorCommand = makeCursorCommand(event.offsetX, event.offsetY, thickness, currentEmoji, rotation, currentDrawColor);
     currentPlacer = undefined;
     canvas.dispatchEvent(redrawEvent);
 });
@@ -325,7 +346,7 @@ canvas.addEventListener("mouseleave", () => {
 // Start providing a preview of the point that would be drawn if the mouse was clicked when the mouse enters the canvas
 canvas.addEventListener("mouseenter", (event) => {
     // If the mouse enters the canvas, draw the preview of the point 
-    cursorCommand = makeCursorCommand(event.offsetX, event.offsetY, thickness, currentEmoji, rotation);
+    cursorCommand = makeCursorCommand(event.offsetX, event.offsetY, thickness, currentEmoji, rotation, currentDrawColor);
     canvas.dispatchEvent(toolMovedEvent);
 });
 
@@ -337,7 +358,7 @@ canvas.addEventListener("mousemove", (event) => {
         currentPlacer!.drag!(event.offsetX, event.offsetY); // Add the current cursor position to the current line
         canvas.dispatchEvent(redrawEvent);
     }else{ // Otherwise, draw a preview of the point that would be drawn if the mouse was clicked
-        cursorCommand = makeCursorCommand(event.offsetX, event.offsetY, thickness, currentEmoji, rotation);
+        cursorCommand = makeCursorCommand(event.offsetX, event.offsetY, thickness, currentEmoji, rotation, currentDrawColor);
         canvas.dispatchEvent(toolMovedEvent);
     }
     canvas.dispatchEvent(toolMovedEvent);
@@ -404,6 +425,13 @@ rotationRange.addEventListener("input", (event) => {
     previewContext.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
     rotation = parseInt((event.target as HTMLInputElement).value);
     placeSticker(previewContext, previewCanvas.width/2, previewCanvas.width/2, currentEmoji, rotation);
+    canvas.dispatchEvent(toolMovedEvent);
+});
+
+// Add event listeners to the color picker
+ColorPicker.addEventListener("input", (event) => {
+    currentDrawColor = (event.target as HTMLInputElement).value;
+    setColor(currentDrawColor);
     canvas.dispatchEvent(toolMovedEvent);
 });
 
